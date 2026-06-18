@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3C 服務中心 — 客服操作台</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F5F0;--surface:#fff;--surface2:#F0EDE8;
+  --border:rgba(0,0,0,0.10);--border-strong:rgba(0,0,0,0.18);
+  --text:#1A1815;--text2:#6B6760;--text3:#A09C97;
+  --radius:14px;--radius-sm:8px;
+  --a:#185FA5;--a-bg:#E6F1FB;--a-mid:#378ADD;--a-dark:#0C447C;
+  --b:#993C1D;--b-bg:#FAECE7;--b-mid:#D85A30;--b-dark:#712B13;
+  --c:#3B6D11;--c-bg:#EAF3DE;--c-mid:#639922;--c-dark:#27500A;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:18px;height:18px}
+.logo-name{font-size:15px;font-weight:700}.logo-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:12px}
+.header-time{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#ccc;transition:background 0.3s}
+.conn-dot.online{background:#639922}.conn-dot.offline{background:#D85A30}
+main{padding:2rem;max-width:900px;margin:0 auto}
+.page-heading{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px}
+.page-sub{font-size:14px;color:var(--text2);margin-bottom:2rem}
+.stats-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.5rem;display:flex;gap:2rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.stat{text-align:center}
+.stat-num{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--text)}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+.staff-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:2rem}
+@media(max-width:600px){.staff-grid{grid-template-columns:1fr}}
+.staff-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;position:relative;overflow:hidden}
+.staff-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+.staff-card.a::before{background:var(--a-mid)}.staff-card.b::before{background:var(--b-mid)}.staff-card.c::before{background:var(--c-mid)}
+.staff-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.staff-cat-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;font-family:'DM Mono',monospace}
+.staff-card.a .staff-cat-badge{background:var(--a-bg);color:var(--a-dark)}
+.staff-card.b .staff-cat-badge{background:var(--b-bg);color:var(--b-dark)}
+.staff-card.c .staff-cat-badge{background:var(--c-bg);color:var(--c-dark)}
+.staff-count{font-size:11px;color:var(--text2)}
+.now-serving-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.now-serving-num{font-family:'DM Mono',monospace;font-size:44px;font-weight:500;line-height:1;margin-bottom:14px;transition:transform 0.2s}
+.now-serving-num.pulse{animation:numPulse 0.4s ease}
+@keyframes numPulse{0%{transform:scale(1.15)}100%{transform:scale(1)}}
+.staff-card.a .now-serving-num{color:var(--a)}.staff-card.b .now-serving-num{color:var(--b)}.staff-card.c .now-serving-num{color:var(--c)}
+.call-next-btn{width:100%;padding:10px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:filter 0.15s,transform 0.1s;font-family:'Noto Sans TC',sans-serif}
+.call-next-btn:active{transform:scale(0.97)}
+.call-next-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;filter:none}
+.staff-card.a .call-next-btn{background:var(--a);color:#fff}
+.staff-card.b .call-next-btn{background:var(--b);color:#fff}
+.staff-card.c .call-next-btn{background:var(--c);color:#fff}
+.call-next-btn:not(:disabled):hover{filter:brightness(1.1)}
+.queue-title{font-size:11px;color:var(--text3);margin:10px 0 6px}
+.queue-chips{display:flex;flex-wrap:wrap;gap:4px;min-height:22px}
+.chip{font-family:'DM Mono',monospace;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+.staff-card.a .chip{background:var(--a-bg);color:var(--a-dark)}
+.staff-card.b .chip{background:var(--b-bg);color:var(--b-dark)}
+.staff-card.c .chip{background:var(--c-bg);color:var(--c-dark)}
+.chips-empty{font-size:11px;color:var(--text3)}
+.log-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-top:1.5rem}
+.log-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px}
+.log-list{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto}
+.log-item{font-size:12px;color:var(--text2);display:flex;gap:10px;padding:4px 0;border-bottom:.5px solid var(--border)}
+.log-item:last-child{border-bottom:none}
+.log-time{font-family:'DM Mono',monospace;color:var(--text3);flex-shrink:0}
+.log-empty{font-size:12px;color:var(--text3)}
+.reset-bar{display:flex;justify-content:flex-end;gap:8px;padding-top:1rem;border-top:1px solid var(--border)}
+.reset-btn{padding:8px 18px;font-size:13px;border:1px solid var(--border-strong);background:none;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);font-family:'Noto Sans TC',sans-serif;transition:background 0.12s}
+.reset-btn:hover{background:var(--surface2)}
+.speech-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;margin-right:auto}
+.speech-toggle input{width:15px;height:15px;cursor:pointer;accent-color:var(--a)}
+.speech-label{font-size:13px;color:var(--text2);font-weight:500}
+.export-btn{padding:8px 18px;font-size:13px;border:none;background:#3B6D11;color:#fff;border-radius:var(--radius-sm);cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-weight:700;transition:opacity 0.15s}
+.export-btn:hover{opacity:0.88}
+.export-btn:disabled{opacity:0.4;cursor:not-allowed}
+.peak-row{display:flex;align-items:center;gap:10px}
+.peak-label{font-size:12px;font-weight:700;color:var(--text);width:46px;flex-shrink:0;line-height:1.4}
+.peak-time{font-size:10px;font-weight:400;color:var(--text3)}
+.peak-bar-wrap{flex:1;height:22px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.peak-bar{height:100%;background:var(--a);border-radius:6px;transition:width 0.5s cubic-bezier(.4,0,.2,1);min-width:0}
+.peak-row:nth-child(2) .peak-bar{background:var(--b)}
+.peak-row:nth-child(3) .peak-bar{background:var(--c)}
+.peak-count{font-family:'DM Mono',monospace;font-size:12px;color:var(--text);width:36px;text-align:right;flex-shrink:0}
+.peak-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;width:44px;text-align:center;flex-shrink:0}
+.peak-badge.high{background:#FAECE7;color:var(--b-dark)}
+.peak-badge.mid{background:#FAEEDA;color:#633806}
+.peak-badge.low{background:#EAF3DE;color:var(--c-dark)}
+.peak-table{width:100%;border-collapse:collapse;font-size:12px}
+.peak-table th{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.05em;padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;background:var(--bg)}
+.peak-table td{padding:8px 10px;border-bottom:0.5px solid var(--border);color:var(--text);vertical-align:middle}
+.peak-table tr:last-child td{border-bottom:none}
+.peak-table td:nth-child(3){font-family:'DM Mono',monospace;font-weight:500}
+.peak-table td:nth-child(4){font-family:'DM Mono',monospace;color:var(--text2)}
+.rating-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;margin-top:1.5rem}
+.rating-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.rating-section-title{font-size:13px;font-weight:700;color:var(--text2)}
+.request-rating-btn{padding:8px 16px;background:var(--text);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;transition:opacity 0.15s}
+.request-rating-btn:hover{opacity:0.85}
+.request-rating-btn:active{transform:scale(0.97)}
+.rating-summary{display:flex;gap:1.5rem;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.rating-avg-big{font-family:'DM Mono',monospace;font-size:40px;font-weight:500;color:var(--text);line-height:1}
+.rating-avg-stars{font-size:18px;color:#EF9F27;letter-spacing:2px;margin-top:2px}
+.rating-avg-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.rating-count-box{font-size:12px;color:var(--text2)}
+.rating-count-box strong{font-size:20px;font-family:'DM Mono',monospace;color:var(--text);display:block}
+.rating-log{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto}
+.rating-item{background:var(--bg);border-radius:var(--radius-sm);padding:8px 12px}
+.rating-item-header{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.rating-stars-small{color:#EF9F27;font-size:13px;letter-spacing:1px}
+.rating-item-time{font-size:10px;color:var(--text3);margin-left:auto;font-family:'DM Mono',monospace}
+.rating-item-comment{font-size:12px;color:var(--text2);line-height:1.5}
+.rating-empty{font-size:12px;color:var(--text3)}
+.contact-box{background:#FAECE7;border:1px solid rgba(153,60,29,0.2);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:10px;display:none}
+.contact-box.show{display:block}
+.contact-row{display:flex;align-items:center;gap:6px;font-size:12px;color:#712B13;line-height:1.7}
+.contact-empty{font-size:11px;color:#993C1D;opacity:0.65;font-style:italic}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity 0.2s;white-space:nowrap;z-index:300}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/><rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/><rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/><rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.3"/></svg></div>
+    <div><div class="logo-name">3C 服務中心</div><div class="logo-sub">客服操作台</div></div>
+  </div>
+  <div class="header-right">
+    <div class="conn-dot" id="conn-dot"></div>
+    <div class="header-time" id="clock">--:--:--</div>
+  </div>
+</header>
+<main>
+  <h1 class="page-heading">客服人員操作台</h1>
+  <p class="page-sub">點選「叫下一位」呼叫對應類別的下一組號碼，資料即時同步</p>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num" id="total-today">0</div><div class="stat-label">今日取票總數</div></div>
+    <div class="stat"><div class="stat-num" id="total-waiting">0</div><div class="stat-label">目前等候中</div></div>
+    <div class="stat"><div class="stat-num" id="total-served">0</div><div class="stat-label">已服務</div></div>
+    <div class="stat"><div class="stat-num" id="total-leave">0</div><div class="stat-label" style="color:#D85A30">中途離開</div></div>
+  </div>
+  <div class="staff-grid">
+    <div class="staff-card a">
+      <div class="staff-card-header"><span class="staff-cat-badge">A — 更新</span><span class="staff-count">等候 <span id="cnt-A">0</span> 人</span></div>
+      <div class="now-serving-label">服務中</div>
+      <div class="now-serving-num" id="srv-A"><span style="font-size:24px;color:var(--text3)">—</span></div>
+      <button class="call-next-btn" id="btn-A" onclick="callNext('A')" disabled>叫下一位</button>
+      <div class="queue-title">候叫號碼</div>
+      <div class="queue-chips" id="chips-A"><span class="chips-empty">無</span></div>
+    </div>
+    <div class="staff-card b">
+      <div class="staff-card-header"><span class="staff-cat-badge">B — 送修</span><span class="staff-count">等候 <span id="cnt-B">0</span> 人</span></div>
+      <div class="now-serving-label">服務中</div>
+      <div class="now-serving-num" id="srv-B"><span style="font-size:24px;color:var(--text3)">—</span></div>
+      <div class="contact-box" id="contact-box">
+        <div class="contact-row" id="contact-name-row"><span>姓名：</span><span id="c-name"></span></div>
+        <div class="contact-row" id="contact-phone-row"><span>電話：</span><span id="c-phone"></span></div>
+      </div>
+      <button class="call-next-btn" id="btn-B" onclick="callNext('B')" disabled>叫下一位</button>
+      <div class="queue-title">候叫號碼</div>
+      <div class="queue-chips" id="chips-B"><span class="chips-empty">無</span></div>
+    </div>
+    <div class="staff-card c">
+      <div class="staff-card-header"><span class="staff-cat-badge">C — 取件 / 諮詢</span><span class="staff-count">等候 <span id="cnt-C">0</span> 人</span></div>
+      <div class="now-serving-label">服務中</div>
+      <div class="now-serving-num" id="srv-C"><span style="font-size:24px;color:var(--text3)">—</span></div>
+      <button class="call-next-btn" id="btn-C" onclick="callNext('C')" disabled>叫下一位</button>
+      <div class="queue-title">候叫號碼</div>
+      <div class="queue-chips" id="chips-C"><span class="chips-empty">無</span></div>
+    </div>
+  </div>
+  <div class="log-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div class="log-title" style="margin-bottom:0">叫號紀錄</div>
+      <select id="log-date-select" onchange="switchLogDate(this.value)" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:'Noto Sans TC',sans-serif;cursor:pointer">
+        <option value="">載入中...</option>
+      </select>
+    </div>
+    <div class="log-list" id="log-list"><span class="log-empty">尚無紀錄</span></div>
+  </div>
+
+  <!-- 人潮時段統計 -->
+  <div class="log-section" style="margin-top:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="log-title">人潮時段統計</div>
+      <div style="font-size:11px;color:var(--text3)">依叫號紀錄計算（今日）</div>
+    </div>
+    <!-- 長條圖 -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <div class="peak-row" id="peak-row-0">
+        <div class="peak-label">早段<br><span class="peak-time">09:00–12:00</span></div>
+        <div class="peak-bar-wrap"><div class="peak-bar" id="peak-bar-0" style="width:0%"></div></div>
+        <div class="peak-count" id="peak-count-0">0 人</div>
+        <div class="peak-badge" id="peak-badge-0"></div>
+      </div>
+      <div class="peak-row" id="peak-row-1">
+        <div class="peak-label">中段<br><span class="peak-time">12:00–15:00</span></div>
+        <div class="peak-bar-wrap"><div class="peak-bar" id="peak-bar-1" style="width:0%"></div></div>
+        <div class="peak-count" id="peak-count-1">0 人</div>
+        <div class="peak-badge" id="peak-badge-1"></div>
+      </div>
+      <div class="peak-row" id="peak-row-2">
+        <div class="peak-label">晚段<br><span class="peak-time">15:00–18:00</span></div>
+        <div class="peak-bar-wrap"><div class="peak-bar" id="peak-bar-2" style="width:0%"></div></div>
+        <div class="peak-count" id="peak-count-2">0 人</div>
+        <div class="peak-badge" id="peak-badge-2"></div>
+      </div>
+    </div>
+    <!-- 數字表格 -->
+    <table class="peak-table">
+      <thead>
+        <tr><th>時段</th><th>時間範圍</th><th>服務人數</th><th>佔比</th><th>建議</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>早段</td><td>09:00–12:00</td>
+          <td id="tbl-count-0">0</td>
+          <td id="tbl-pct-0">—</td>
+          <td id="tbl-tip-0">—</td>
+        </tr>
+        <tr>
+          <td>中段</td><td>12:00–15:00</td>
+          <td id="tbl-count-1">0</td>
+          <td id="tbl-pct-1">—</td>
+          <td id="tbl-tip-1">—</td>
+        </tr>
+        <tr>
+          <td>晚段</td><td>15:00–18:00</td>
+          <td id="tbl-count-2">0</td>
+          <td id="tbl-pct-2">—</td>
+          <td id="tbl-tip-2">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="rating-section">
+    <div class="rating-section-header">
+      <div class="rating-section-title">服務滿意度</div>
+      <button class="request-rating-btn" onclick="requestRating()">請客戶評分</button>
+    </div>
+    <div class="rating-summary">
+      <div style="text-align:center;flex-shrink:0">
+        <div class="rating-avg-big" id="avg-score">—</div>
+        <div class="rating-avg-stars" id="avg-stars">☆☆☆☆☆</div>
+        <div class="rating-avg-sub" id="rating-count-label">0 筆評分</div>
+      </div>
+      <div style="flex:1;min-width:140px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">5★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-5" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-5-n" style="width:16px">0</span></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">4★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-4" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-4-n" style="width:16px">0</span></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">3★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-3" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-3-n" style="width:16px">0</span></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">2★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-2" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-2-n" style="width:16px">0</span></div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">1★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-1" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-1-n" style="width:16px">0</span></div>
+      </div>
+    </div>
+    <div class="rating-log" id="rating-log"><span class="rating-empty">尚無評分紀錄</span></div>
+  </div>
+  <div class="rating-section" style="margin-top:1.5rem">
+    <div class="rating-section-header">
+      <div class="rating-section-title">中途離開原因統計</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px" id="leave-stats-block">
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+        <span style="flex:0 0 120px;color:var(--text2)">等待時間太長</span>
+        <div style="flex:1;height:8px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="leave-bar-0" style="height:100%;background:#D85A30;border-radius:999px;width:0%;transition:width 0.4s"></div></div>
+        <span id="leave-n-0" style="font-family:'DM Mono',monospace;font-size:12px;min-width:24px;text-align:right;color:var(--text2)">0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+        <span style="flex:0 0 120px;color:var(--text2)">臨時有事需要離開</span>
+        <div style="flex:1;height:8px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="leave-bar-1" style="height:100%;background:#D85A30;border-radius:999px;width:0%;transition:width 0.4s"></div></div>
+        <span id="leave-n-1" style="font-family:'DM Mono',monospace;font-size:12px;min-width:24px;text-align:right;color:var(--text2)">0</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+        <span style="flex:0 0 120px;color:var(--text2)">改天再來</span>
+        <div style="flex:1;height:8px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="leave-bar-2" style="height:100%;background:#D85A30;border-radius:999px;width:0%;transition:width 0.4s"></div></div>
+        <span id="leave-n-2" style="font-family:'DM Mono',monospace;font-size:12px;min-width:24px;text-align:right;color:var(--text2)">0</span>
+      </div>
+    </div>
+  </div>
+  <div class="reset-bar">
+    <label class="speech-toggle" title="開啟/關閉語音叫號">
+      <input type="checkbox" id="speech-toggle" checked onchange="toggleSpeech(this.checked)">
+      <span class="speech-label">🔊 語音叫號</span>
+    </label>
+    <button class="export-btn" onclick="exportExcel()">匯出 Excel</button>
+    <button class="reset-btn" onclick="resetAll()">重置所有號碼</button>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, onValue, runTransaction, set, remove, get } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDkm01ZoMeGbie9rJ2degXB3WkBMBJsPac",
+    authDomain:        "cqu-24ff6.firebaseapp.com",
+    databaseURL:       "https://cqu-24ff6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "cqu-24ff6",
+    storageBucket:     "cqu-24ff6.firebasestorage.app",
+    messagingSenderId: "969459695687",
+    appId:             "1:969459695687:web:502518a525514f0474b162"
+  };
+const meta={A:{name:'更新',color:'#185FA5'},B:{name:'送修',color:'#993C1D'},C:{name:'取件 / 諮詢',color:'#3B6D11'}};
+const app=initializeApp(FIREBASE_CONFIG);
+const db=getDatabase(app);
+const callLog=[];
+let lastCalledTicket=null; // 最後叫到的票號
+let lastCalledKey=null;    // 對應的 Firebase key
+onValue(ref(db,'.info/connected'),s=>{
+  document.getElementById('conn-dot').className='conn-dot '+(s.val()?'online':'offline');
+});
+onValue(ref(db,'queue'),snap=>{
+  const data=snap.val()||{};
+  let tw=0,tc=0,ts=0;
+  ['A','B','C'].forEach(cat=>{
+    const cd=data[cat]||{};
+    const q=cd.queue?Object.values(cd.queue).sort():[];
+    const sv=cd.serving||null;
+    tw+=q.length; tc+=(cd.counter||0); ts+=(cd.served||0);
+    document.getElementById('cnt-'+cat).textContent=q.length;
+    const sEl=document.getElementById('srv-'+cat);
+    const prev=sEl.dataset.val||''; const next=sv||'';
+    sEl.dataset.val=next;
+    sEl.innerHTML=sv?sv:'<span style="font-size:24px;color:var(--text3)">—</span>';
+    if(prev!==next&&sv){sEl.classList.remove('pulse');void sEl.offsetWidth;sEl.classList.add('pulse');}
+    document.getElementById('btn-'+cat).disabled=q.length===0;
+    const ch=document.getElementById('chips-'+cat);
+    ch.innerHTML=q.length?q.map(n=>'<span class="chip">'+n+'</span>').join(''):'<span class="chips-empty">無</span>';
+  });
+  document.getElementById('total-today').textContent=tc;
+  document.getElementById('total-waiting').textContent=tw;
+  document.getElementById('total-served').textContent=ts;
+});
+// ── 離開原因統計監聽 ──
+onValue(ref(db,'leaveSummary'),snap=>{
+  const data=snap.val()||{};
+  const counts=[data[0]||0, data[1]||0, data[2]||0];
+  const total=counts.reduce((a,b)=>a+b,0)||1;
+  counts.forEach((n,i)=>{
+    document.getElementById('leave-n-'+i).textContent=n;
+    document.getElementById('leave-bar-'+i).style.width=Math.round((n/total)*100)+'%';
+  });
+  const leaveTotal=(data[0]||0)+(data[1]||0)+(data[2]||0);
+  const el=document.getElementById('total-leave');
+  if(el) el.textContent=leaveTotal;
+});
+window.callNext=async function(cat){
+  const snap=await get(ref(db,'queue/'+cat+'/queue'));
+  const qObj=snap.val(); if(!qObj)return;
+  const sorted=Object.entries(qObj).sort((a,b)=>a[1].localeCompare(b[1]));
+  const [fk,fn]=sorted[0];
+  await remove(ref(db,'queue/'+cat+'/queue/'+fk));
+  await set(ref(db,'queue/'+cat+'/serving'),fn);
+  await runTransaction(ref(db,'queue/'+cat+'/served'),v=>(v||0)+1);
+  lastCalledTicket=fn; lastCalledKey=fk;
+  // B類：查詢並顯示聯絡資料
+  const box=document.getElementById('contact-box');
+  if(cat==='B'){
+    try{
+      const cs=await get(ref(db,'queue/B/contacts'));
+      const contacts=cs.val()||{};
+      const found=Object.values(contacts).find(c=>c.ticket===fn);
+      if(found&&(found.name||found.phone)){
+        const nameHtml=found.name?'<div class="contact-row"><span>姓名：</span><span>'+found.name+'</span></div>':'';
+        const phoneHtml=found.phone?'<div class="contact-row"><span>電話：</span><span>'+found.phone+'</span></div>':'';
+        box.innerHTML=nameHtml+phoneHtml;
+        box.classList.add('show');
+      } else {
+        box.innerHTML='<div class="contact-row"><span class="contact-empty">客戶未填寫聯絡資料</span></div>';
+        box.classList.add('show');
+      }
+    }catch(e){
+      box.classList.remove('show');
+    }
+  } else {
+    box.classList.remove('show');
+  }
+  // 叫號紀錄（一定要執行到這裡）
+  const nowTime=new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  const logEntry={time:nowTime,num:fn,name:meta[cat].name,cat};
+  // 存到記憶體
+  callLog.unshift(logEntry);
+  if(callLog.length>200)callLog.pop();
+  // 存到 Firebase 永久歷史
+  const histKey='h_'+Date.now();
+  set(ref(db,'history/'+todayDate+'/'+histKey),logEntry).catch(e=>console.warn('History write:',e));
+  // 更新畫面（若目前選的日期是今天才更新列表）
+  const sel=document.getElementById('log-date-select');
+  if(!sel.value||sel.value===todayDate){
+    renderLogList(callLog);
+    updateDateSelector(todayDate);
+  }
+  updatePeakStats();
+  showToast(meta[cat].name+' — 請 '+fn+' 號到櫃台');
+  speakCall(fn, meta[cat].name);
+};
+// ── 叫號紀錄顯示 ──
+function renderLogList(entries){
+  const el=document.getElementById('log-list');
+  if(!entries||!entries.length){el.innerHTML='<span class="log-empty">無叫號紀錄</span>';return;}
+  el.innerHTML=entries.map(l=>
+    '<div class="log-item"><span class="log-time">'+l.time+'</span><span>叫號 <strong>'+l.num+'</strong>（'+l.name+'）</span></div>'
+  ).join('');
+}
+// ── 切換日期 ──
+window.switchLogDate=async function(date){
+  if(!date)return;
+  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  if(date===todayDate){
+    renderLogList(callLog);
+    return;
+  }
+  const snap=await get(ref(db,'history/'+date));
+  const data=snap.val()||{};
+  const entries=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
+  renderLogList(entries);
+};
+// ── 更新日期選單 ──
+async function updateDateSelector(selectDate){
+  const snap=await get(ref(db,'history'));
+  const data=snap.val()||{};
+  const dates=Object.keys(data).sort((a,b)=>b.localeCompare(a));
+  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  if(!dates.includes(todayDate))dates.unshift(todayDate);
+  const sel=document.getElementById('log-date-select');
+  const current=selectDate||sel.value||todayDate;
+  sel.innerHTML=dates.map(d=>
+    '<option value="'+d+'"'+(d===current?' selected':'')+'>'+(d===todayDate?'今天（'+d+'）':d)+'</option>'
+  ).join('');
+}
+// 頁面載入時初始化日期選單與今天紀錄
+(async function initLog(){
+  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  await updateDateSelector(todayDate);
+  // 載入今天已有的 Firebase 歷史（補齊重整前的紀錄）
+  const snap=await get(ref(db,'history/'+todayDate));
+  const data=snap.val()||{};
+  const saved=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
+  if(saved.length>0&&callLog.length===0){
+    saved.forEach(e=>callLog.push(e));
+    renderLogList(callLog);
+    updatePeakStatsFromEntries(callLog);
+  }
+})();
+// ── 人潮時段統計 ──
+function updatePeakStats(){ updatePeakStatsFromEntries(callLog); }
+function updatePeakStatsFromEntries(entries){
+  const slots=[0,0,0];
+  (entries||[]).forEach(l=>{
+    if(!l.time)return;
+    const h=parseInt(l.time.split(':')[0]);
+    if(h>=9&&h<12)slots[0]++;
+    else if(h>=12&&h<15)slots[1]++;
+    else if(h>=15&&h<18)slots[2]++;
+  });
+  const total=slots.reduce((a,b)=>a+b,0)||1;
+  const maxVal=Math.max(...slots,1);
+  const tips=['需求低','正常','較忙碌','繁忙','尖峰'];
+  const badges=['low','low','mid','high','high'];
+  slots.forEach((n,i)=>{
+    const pct=Math.round((n/maxVal)*100);
+    const pctTotal=total>0?Math.round((n/total)*100):0;
+    // 長條圖
+    const bar=document.getElementById('peak-bar-'+i);
+    if(bar)bar.style.width=pct+'%';
+    const cnt=document.getElementById('peak-count-'+i);
+    if(cnt)cnt.textContent=n+' 人';
+    // 標籤
+    const level=n===0?0:n<3?1:n<6?2:n<10?3:4;
+    const bdg=document.getElementById('peak-badge-'+i);
+    if(bdg){bdg.textContent=tips[level];bdg.className='peak-badge '+badges[level];}
+    // 表格
+    const tc=document.getElementById('tbl-count-'+i);
+    if(tc)tc.textContent=n;
+    const tp=document.getElementById('tbl-pct-'+i);
+    if(tp)tp.textContent=total>1?(pctTotal+'%'):'—';
+    const tt=document.getElementById('tbl-tip-'+i);
+    if(tt)tt.textContent=n===0?'人員可待機':n<3?'正常人力即可':n<6?'建議備援人力':n<10?'需加派人員':'建議全員支援';
+  });
+}
+window.resetAll=async function(){
+  if(!confirm('確定要重置所有號碼嗎？\n叫號歷史紀錄會保留，等候隊列和服務號碼會歸零。'))return;
+  // 只清隊列、服務號碼、離開統計 — 不動 history
+  await set(ref(db,'queue'),null);
+  await set(ref(db,'leaveSummary'),null);
+  await set(ref(db,'leaveReasons'),null);
+  callLog.length=0; lastCalledTicket=null; lastCalledKey=null;
+  // 重新初始化今天的紀錄（從 Firebase history 重新載入）
+  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+  const snap=await get(ref(db,'history/'+todayDate));
+  const data=snap.val()||{};
+  const saved=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
+  saved.forEach(e=>callLog.push(e));
+  renderLogList(callLog);
+  showToast('已重置號碼，歷史紀錄保留中');
+};
+// ── 觸發一對一評分：查出票號對應的裝置 ID，只通知那個裝置 ──
+window.requestRating=async function(){
+  if(!lastCalledTicket){showToast('請先叫號後再發送評分');return;}
+  const devSnap=await get(ref(db,'queue/devices'));
+  const devices=devSnap.val()||{};
+  const found=Object.values(devices).find(d=>d.ticket===lastCalledTicket);
+  if(!found){showToast('找不到對應裝置，客戶可能未使用此系統取票');return;}
+  await set(ref(db,'queue/ratingTrigger'),{active:true,deviceId:found.deviceId,ticket:lastCalledTicket,ts:Date.now()});
+  showToast('已發送評分邀請給 '+lastCalledTicket+' 號客戶');
+};
+// ── 即時監聽評分資料 ──
+onValue(ref(db,'ratings'),snap=>{
+  const data=snap.val()||{};
+  const entries=Object.values(data);
+  const count=entries.length;
+  const totalStars=entries.reduce((s,e)=>s+e.stars,0);
+  const avg=count>0?(totalStars/count).toFixed(1):null;
+  document.getElementById('rating-count-label').textContent=count+' 筆評分';
+  document.getElementById('avg-score').textContent=avg||'—';
+  const starsFilled=avg?Math.round(parseFloat(avg)):0;
+  document.getElementById('avg-stars').textContent='★'.repeat(starsFilled)+'☆'.repeat(5-starsFilled);
+  // 分佈統計
+  const dist={1:0,2:0,3:0,4:0,5:0};
+  entries.forEach(e=>dist[e.stars]=(dist[e.stars]||0)+1);
+  const maxD=Math.max(...Object.values(dist),1);
+  [1,2,3,4,5].forEach(s=>{
+    document.getElementById('dist-'+s+'-n').textContent=dist[s];
+    document.getElementById('dist-'+s).style.width=Math.round((dist[s]/maxD)*100)+'%';
+  });
+  // 留言列表（依日期分組，最新日期在最上面）
+  const logEl=document.getElementById('rating-log');
+  if(!count){logEl.innerHTML='<span class="rating-empty">尚無評分紀錄</span>';return;}
+  // 排序：有 ts 用 ts，沒有用 time 字串
+  const sorted=[...entries].sort((a,b)=>(b.ts||0)-(a.ts||0)||(b.time||'').localeCompare(a.time||''));
+  // 依日期分組
+  const groups={};
+  sorted.forEach(e=>{
+    const d=e.date||'日期不明';
+    if(!groups[d])groups[d]=[];
+    groups[d].push(e);
+  });
+  // 依日期排序（最新在前）
+  const dateKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const today=new Date().toLocaleDateString('zh-TW');
+  let html='';
+  dateKeys.forEach(date=>{
+    const label=date===today?'今天（'+date+'）':date;
+    html+='<div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:8px 0 4px;border-bottom:0.5px solid var(--border);margin-bottom:6px;">'+label+'</div>';
+    groups[date].slice(0,20).forEach(e=>{
+      html+='<div class="rating-item">'+
+        '<div class="rating-item-header">'+
+        '<span class="rating-stars-small">'+'★'.repeat(e.stars)+'☆'.repeat(5-e.stars)+'</span>'+
+        '<span class="rating-item-time">'+e.time+'</span>'+
+        '</div>'+
+        (e.comment?'<div class="rating-item-comment">'+e.comment+'</div>':'')+
+        '</div>';
+    });
+  });
+  logEl.innerHTML=html;
+});
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('zh-TW',{hour12:false});}
+tick();setInterval(tick,1000);
+let tt;
+window.showToast=function(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800);
+};
+// ── 語音叫號 ──
+let speechEnabled=true;
+window.toggleSpeech=function(val){ speechEnabled=val; };
+function speakCall(ticketNum, serviceName){
+  if(!speechEnabled) return;
+  if(!window.speechSynthesis) return;
+  const numOnly=ticketNum.replace(/^[A-Z]/,'').replace(/^0+/,'');
+  const text='請 '+numOnly+' 號，到櫃台，'+serviceName+'，服務';
+  window.speechSynthesis.cancel();
+  const utter=new SpeechSynthesisUtterance(text);
+  utter.lang='zh-TW';
+  utter.rate=0.85;
+  utter.pitch=1;
+  utter.volume=1;
+  const voices=window.speechSynthesis.getVoices();
+  const zhVoice=voices.find(v=>v.lang==='zh-TW')||voices.find(v=>v.lang.startsWith('zh'))||null;
+  if(zhVoice) utter.voice=zhVoice;
+  window.speechSynthesis.speak(utter);
+}
+// ── 匯出 Excel ──
+window.exportExcel=async function(){
+  const btn=document.querySelector('.export-btn');
+  btn.disabled=true; btn.textContent='匯出中...';
+  try{
+    const snap=await get(ref(db,'/'));
+    const data=snap.val()||{};
+    const wb=XLSX.utils.book_new();
+    const today=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+    const now=new Date().toLocaleString('zh-TW',{hour12:false});
+
+    // ── 工作表1：叫號紀錄（全部歷史，依日期分組） ──
+    const logRows=[['日期','時間','號碼','類別','服務名稱']];
+    const historyData=data.history||{};
+    const allDates=Object.keys(historyData).sort((a,b)=>new Date(a)-new Date(b)); // 舊→新（數值比較）
+    if(allDates.length===0){
+      logRows.push(['（尚無叫號歷史紀錄）','','','','']);
+    } else {
+      allDates.forEach(date=>{
+        const dayEntries=Object.values(historyData[date]).sort((a,b)=>(a.time||'').localeCompare(b.time||'')); // 早→晚
+        logRows.push([date,'','','','']);
+        dayEntries.forEach(l=>{
+          logRows.push(['', l.time||'', l.num||'', l.cat||l.num?.charAt(0)||'', l.name||'']);
+        });
+        logRows.push([]);
+      });
+    }
+    const ws1=XLSX.utils.aoa_to_sheet(logRows);
+    ws1['!cols']=[{wch:14},{wch:10},{wch:10},{wch:8},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws1, '叫號紀錄（全部）');
+
+    // ── 工作表2：服務滿意度 ──
+    const ratingRows=[['日期','時間','星數','留言']];
+    const ratings=data.ratings||{};
+    Object.values(ratings).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(r=>{
+      ratingRows.push([r.date||today, r.time||'', r.stars||'', r.comment||'']);
+    });
+    if(ratingRows.length===1) ratingRows.push(['（尚無評分資料）','','','']);
+    const rVals=Object.values(ratings);
+    const avg=rVals.length?(rVals.reduce((s,r)=>s+(r.stars||0),0)/rVals.length).toFixed(1):0;
+    ratingRows.push([]);
+    ratingRows.push(['總評分筆數',rVals.length,'平均分數',avg]);
+    const dist={1:0,2:0,3:0,4:0,5:0};
+    rVals.forEach(r=>dist[r.stars]=(dist[r.stars]||0)+1);
+    [1,2,3,4,5].forEach(s=>ratingRows.push([s+'星',dist[s],'','']));
+    const ws2=XLSX.utils.aoa_to_sheet(ratingRows);
+    ws2['!cols']=[{wch:14},{wch:10},{wch:8},{wch:30}];
+    XLSX.utils.book_append_sheet(wb, ws2, '服務滿意度');
+
+    // ── 工作表3：中途離開統計 ──
+    const leaveReasonNames=['等待時間太長','臨時有事需要離開','改天再來'];
+    const leaveSummary=data.leaveSummary||{};
+    const leaveLog=data.leaveReasons||{};
+    const leaveRows=[['原因','次數','佔比']];
+    const totalLeave=leaveReasonNames.reduce((_,__,i)=>_+(leaveSummary[i]||0),0)||1;
+    leaveReasonNames.forEach((reason,i)=>{
+      const n=leaveSummary[i]||0;
+      leaveRows.push([reason, n, Math.round(n/totalLeave*100)+'%']);
+    });
+    leaveRows.push([]);
+    leaveRows.push(['離開明細紀錄','','']);
+    leaveRows.push(['時間','號碼','原因']);
+    Object.values(leaveLog).sort((a,b)=>(b.time||'').localeCompare(a.time||'')).forEach(l=>{
+      leaveRows.push([l.time||'', l.ticket||'', l.reason||'']);
+    });
+    if(!Object.keys(leaveLog).length) leaveRows.push(['（尚無離開紀錄）','','']);
+    const ws3=XLSX.utils.aoa_to_sheet(leaveRows);
+    ws3['!cols']=[{wch:20},{wch:8},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws3, '中途離開統計');
+
+    // ── 工作表4：每日摘要 ──
+    const queueData=data.queue||{};
+    const sumRows=[['匯出時間',now],['匯出日期',today],[],['類別','取票總數','已服務']];
+    ['A','B','C'].forEach(cat=>{
+      const cd=queueData[cat]||{};
+      sumRows.push([meta[cat].name, cd.counter||0, cd.served||0]);
+    });
+    sumRows.push([]);
+    sumRows.push(['評分總數', rVals.length]);
+    sumRows.push(['平均分數', avg]);
+    sumRows.push(['中途離開總次數', leaveReasonNames.reduce((_,__,i)=>_+(leaveSummary[i]||0),0)]);
+    sumRows.push([]);
+    sumRows.push(['叫號歷史日數', allDates.length]);
+    const totalHistLog=allDates.reduce((s,d)=>s+Object.keys(historyData[d]||{}).length,0);
+    sumRows.push(['歷史叫號總筆數', totalHistLog]);
+    const ws4=XLSX.utils.aoa_to_sheet(sumRows);
+    ws4['!cols']=[{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws4, '每日摘要');
+
+    // ── 工作表5：月份統計 ──
+    const monthMap={};
+    allDates.forEach(date=>{
+      const month=date.slice(0,7);
+      if(!monthMap[month]) monthMap[month]={total:0,A:0,B:0,C:0,days:{}};
+      const dayEntries=Object.values(historyData[date]||{});
+      monthMap[month].total+=dayEntries.length;
+      monthMap[month].days[date]=dayEntries.length;
+      dayEntries.forEach(e=>{
+        const cat=e.cat||(e.num&&e.num.charAt(0))||'';
+        if(cat==='A') monthMap[month].A++;
+        else if(cat==='B') monthMap[month].B++;
+        else if(cat==='C') monthMap[month].C++;
+      });
+    });
+
+    const sortedMonths=Object.keys(monthMap).sort((a,b)=>new Date(a+'-1')-new Date(b+'-1')); // 舊→新（數值比較）
+    const monthRows=[
+      ['月份統計報表'],
+      ['匯出時間', now],
+      [],
+      ['月份','叫號總數','更新(A)','送修(B)','取件/諮詢(C)','服務天數','日均叫號數'],
+    ];
+    let gTotal=0,gA=0,gB=0,gC=0,gDays=0;
+    sortedMonths.forEach(month=>{
+      const m=monthMap[month];
+      const days=Object.keys(m.days).length;
+      const avg=days>0?(m.total/days).toFixed(1):0;
+      monthRows.push([month, m.total, m.A, m.B, m.C, days, avg]);
+      gTotal+=m.total; gA+=m.A; gB+=m.B; gC+=m.C; gDays+=days;
+    });
+    if(!sortedMonths.length) monthRows.push(['（尚無歷史資料）','','','','','','']);
+    monthRows.push([]);
+    monthRows.push(['合計', gTotal, gA, gB, gC, gDays,
+      gDays>0?(gTotal/gDays).toFixed(1):0]);
+
+    // 每月每日明細
+    monthRows.push([]);
+    monthRows.push(['── 每日明細 ──','','','','','','']);
+    monthRows.push(['日期','叫號筆數','','','','','']);
+    sortedMonths.forEach(month=>{
+      const m=monthMap[month];
+      monthRows.push([month+'（月份）','','','','','','']);
+      Object.keys(m.days).sort((a,b)=>new Date(a)-new Date(b)).forEach(date=>{
+        monthRows.push(['', date, m.days[date],'','','','']);
+      });
+      monthRows.push([]);
+    });
+
+    const ws5=XLSX.utils.aoa_to_sheet(monthRows);
+    ws5['!cols']=[{wch:14},{wch:12},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws5, '月份統計');
+
+    // 下載
+    const dateStr=today;
+    XLSX.writeFile(wb, '3C服務中心_'+dateStr+'.xlsx');
+    showToast('Excel 已匯出成功！');
+  }catch(e){
+    console.error('Export error:',e);
+    showToast('匯出失敗，請再試一次');
+  }finally{
+    btn.disabled=false; btn.textContent='匯出 Excel';
+  }
+};
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</body>
+</html>

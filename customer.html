@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3C 服務中心 — 取票</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Firebase compat SDK（非 module，函數可直接掛 window） -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F5F0;--surface:#fff;--surface2:#F0EDE8;
+  --border:rgba(0,0,0,0.10);--border-strong:rgba(0,0,0,0.18);
+  --text:#1A1815;--text2:#6B6760;--text3:#A09C97;
+  --radius:14px;--radius-sm:8px;--accent:#1A1815;
+  --a:#185FA5;--a-bg:#E6F1FB;--a-mid:#378ADD;--a-dark:#0C447C;
+  --b:#993C1D;--b-bg:#FAECE7;--b-mid:#D85A30;--b-dark:#712B13;
+  --c:#3B6D11;--c-bg:#EAF3DE;--c-mid:#639922;--c-dark:#27500A;
+}
+body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:16px;height:16px}
+.logo-name{font-size:15px;font-weight:700}.logo-sub{font-size:11px;color:var(--text2);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#ccc;transition:background 0.3s}
+.conn-dot.online{background:#639922}.conn-dot.offline{background:#D85A30}
+.header-time{font-family:'DM Mono',monospace;font-size:13px;color:var(--text2)}
+main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
+.page-heading{font-size:22px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px}
+.page-sub{font-size:14px;color:var(--text2);margin-bottom:2rem}
+.cat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:1.5rem}
+@media(max-width:520px){.cat-grid{grid-template-columns:1fr}}
+.cat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:1.5rem 1.25rem;position:relative;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s}
+.cat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+.cat-card.a::before{background:var(--a-mid)}.cat-card.b::before{background:var(--b-mid)}.cat-card.c::before{background:var(--c-mid)}
+.cat-card:not(.locked):hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.10)}
+.cat-code{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;display:inline-block;padding:3px 8px;border-radius:6px;margin-bottom:12px}
+.cat-card.a .cat-code{background:var(--a-bg);color:var(--a-dark)}
+.cat-card.b .cat-code{background:var(--b-bg);color:var(--b-dark)}
+.cat-card.c .cat-code{background:var(--c-bg);color:var(--c-dark)}
+.cat-name{font-size:20px;font-weight:700;margin-bottom:6px}
+.cat-desc{font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.5}
+.cat-wait{font-size:12px;color:var(--text2);margin-bottom:12px}
+.take-btn{width:100%;padding:10px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:filter 0.15s,transform 0.1s;font-family:'Noto Sans TC',sans-serif}
+.take-btn:active:not(:disabled){transform:scale(0.97)}
+.cat-card.a .take-btn{background:var(--a);color:#fff}
+.cat-card.b .take-btn{background:var(--b);color:#fff}
+.cat-card.c .take-btn{background:var(--c);color:#fff}
+.take-btn:hover:not(:disabled){filter:brightness(1.1)}
+.take-btn:disabled{opacity:0.4;cursor:not-allowed;filter:none;transform:none}
+.cat-card.locked{opacity:0.6}
+.taken-notice{text-align:center;font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:1.5rem;display:none}
+.taken-notice.show{display:block}
+.live-board{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem}
+.live-board-title{font-size:13px;font-weight:700;color:var(--text2);letter-spacing:.05em;margin-bottom:1rem}
+.live-num{font-family:'DM Mono',monospace;font-weight:500;line-height:1;margin-bottom:2px}
+.live-num.pulse{animation:numPulse 0.4s ease}
+@keyframes numPulse{0%{transform:scale(1.2)}100%{transform:scale(1)}}
+/* 底部固定欄 */
+.my-ticket-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1.5px solid var(--border);padding:14px 1.5rem 18px;z-index:200;box-shadow:0 -4px 16px rgba(0,0,0,0.08)}
+.my-ticket-bar.show{display:block}
+.my-ticket-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.my-ticket-info{flex:1}
+.my-ticket-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:0.08em;margin-bottom:2px}
+.my-ticket-num{font-family:'DM Mono',monospace;font-size:32px;font-weight:500;color:var(--text);line-height:1}
+.my-ticket-cat{font-size:11px;color:var(--text2);margin-top:3px}
+.my-leave-btn{padding:10px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;background:none;color:var(--text2);font-family:'Noto Sans TC',sans-serif;white-space:nowrap;flex-shrink:0;transition:border-color 0.15s,color 0.15s}
+.my-leave-btn:hover{border-color:var(--text);color:var(--text)}
+.main-with-bar{padding-bottom:90px}
+/* B類填寫視窗 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;z-index:300;padding:1rem}
+.overlay.open{display:flex}
+.overlay-box{background:var(--surface);border-radius:22px;padding:2rem 1.75rem;width:100%;max-width:320px;animation:pop 0.22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
+.form-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#FAECE7;color:#712B13;margin-bottom:10px;font-family:'DM Mono',monospace}
+.form-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.form-sub{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.form-field{margin-bottom:12px;text-align:left}
+.form-label{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans TC',sans-serif;color:var(--text);background:var(--surface);outline:none;transition:border-color 0.15s}
+.form-input:focus{border-color:#993C1D}
+.form-input::placeholder{color:var(--text3)}
+.form-actions{display:flex;gap:8px;margin-top:16px}
+.form-skip{flex:1;padding:11px;border:1px solid var(--border-strong);background:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:'Noto Sans TC',sans-serif}
+.form-submit{flex:2;padding:11px;background:#993C1D;color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.form-note{font-size:11px;color:var(--text3);text-align:center;margin-top:10px}
+/* 號碼牌視窗 */
+.modal-tag{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.1em;margin-bottom:12px;text-align:center}
+.modal-num{font-family:'DM Mono',monospace;font-size:80px;font-weight:500;line-height:1;letter-spacing:-3px;color:var(--text);margin-bottom:8px;text-align:center}
+.modal-service{font-size:13px;color:var(--text2);margin-bottom:14px;text-align:center}
+.modal-info{font-size:13px;color:var(--text2);background:var(--bg);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:18px;line-height:1.8;text-align:center}
+.modal-close{width:100%;padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;border:none;background:var(--accent);color:#fff;font-family:'Noto Sans TC',sans-serif}
+/* 離開視窗 */
+.leave-title{font-size:17px;font-weight:700;margin-bottom:6px;text-align:center}
+.leave-sub{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:18px;text-align:center}
+.leave-options{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.leave-option{padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;background:var(--surface);color:var(--text);font-family:'Noto Sans TC',sans-serif;text-align:left;transition:border-color 0.15s,background 0.15s}
+.leave-option.selected{border-color:var(--text);background:var(--text);color:#fff}
+.leave-footer{display:flex;gap:8px}
+.leave-cancel{flex:1;padding:10px;border:1px solid var(--border-strong);background:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:'Noto Sans TC',sans-serif}
+.leave-confirm{flex:2;padding:10px;background:var(--text);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.leave-confirm:disabled{opacity:0.4;cursor:not-allowed}
+/* 評分視窗 */
+.rating-title{font-size:17px;font-weight:700;margin-bottom:4px;text-align:center}
+.rating-sub{font-size:12px;color:var(--text2);margin-bottom:18px;text-align:center;line-height:1.6}
+.stars{display:flex;justify-content:center;gap:8px;margin-bottom:16px}
+.star{font-size:36px;cursor:pointer;color:#D1CBC3;transition:color 0.15s,transform 0.1s;line-height:1}
+.star.on{color:#EF9F27}
+.star:hover{transform:scale(1.15)}
+.rating-textarea{width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans TC',sans-serif;color:var(--text);background:var(--surface);resize:vertical;outline:none;margin-bottom:14px}
+.rating-textarea::placeholder{color:var(--text3)}
+.rating-actions{display:flex;gap:8px}
+.rating-skip{flex:1;padding:10px;border:1px solid var(--border-strong);background:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;color:var(--text2);font-family:'Noto Sans TC',sans-serif}
+.rating-submit{flex:2;padding:10px;background:#EF9F27;color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif}
+.rating-submit:disabled{opacity:0.4;cursor:not-allowed}
+.rating-done{text-align:center;padding:1rem 0;display:none}
+.rating-done-icon{font-size:44px;margin-bottom:10px}
+.rating-done-text{font-size:15px;font-weight:700;margin-bottom:4px}
+.rating-done-sub{font-size:12px;color:var(--text2)}
+/* Toast */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 20px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity 0.2s;white-space:nowrap;z-index:500}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/><rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/><rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.6"/><rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.3"/></svg></div>
+    <div><div class="logo-name">3C 服務中心</div><div class="logo-sub">客戶取票</div></div>
+  </div>
+  <div class="header-right">
+    <div class="conn-dot" id="conn-dot"></div>
+    <div class="header-time" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main id="main">
+  <h1 class="page-heading">請選擇服務類別</h1>
+  <p class="page-sub">點選下方按鈕領取號碼牌，等待叫號即可</p>
+  <div class="cat-grid">
+    <div class="cat-card a" id="card-A">
+      <div class="cat-code">A 類</div><div class="cat-name">更新</div>
+      <div class="cat-desc">系統更新、軟體升級、韌體安裝</div>
+      <div class="cat-wait">目前等候 <strong id="wait-A">—</strong> 人</div>
+      <button class="take-btn" id="btn-A" onclick="takeTicket('A')">領取號碼牌 →</button>
+    </div>
+    <div class="cat-card b" id="card-B">
+      <div class="cat-code">B 類</div><div class="cat-name">送修</div>
+      <div class="cat-desc">硬體故障、維修評估、送件登記</div>
+      <div class="cat-wait">目前等候 <strong id="wait-B">—</strong> 人</div>
+      <button class="take-btn" id="btn-B" onclick="openBForm()">領取號碼牌 →</button>
+    </div>
+    <div class="cat-card c" id="card-C">
+      <div class="cat-code">C 類</div><div class="cat-name">取件 / 諮詢</div>
+      <div class="cat-desc">維修完成取件、帳單結清、服務諮詢</div>
+      <div class="cat-wait">目前等候 <strong id="wait-C">—</strong> 人</div>
+      <button class="take-btn" id="btn-C" onclick="takeTicket('C')">領取號碼牌 →</button>
+    </div>
+  </div>
+  <div class="taken-notice" id="taken-notice">您已領取號碼牌，請等待叫號</div>
+  <div class="live-board">
+    <div class="live-board-title">目前號碼</div>
+    <div style="text-align:center;padding:0.5rem 0">
+      <div class="live-num" id="total-num" style="font-size:48px;color:var(--text)">—</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">累積取票數量</div>
+    </div>
+  </div>
+</main>
+
+<!-- 底部號碼牌欄 -->
+<div class="my-ticket-bar" id="my-ticket-bar">
+  <div class="my-ticket-inner">
+    <div class="my-ticket-info">
+      <div class="my-ticket-label">我的號碼牌</div>
+      <div class="my-ticket-num" id="my-ticket-display">—</div>
+      <div class="my-ticket-cat" id="my-ticket-cat"></div>
+    </div>
+    <button class="my-leave-btn" onclick="openLeave()">我要離開</button>
+  </div>
+</div>
+
+<!-- B類填寫視窗 -->
+<div class="overlay" id="form-overlay">
+  <div class="overlay-box">
+    <div class="form-badge">B 類 — 送修</div>
+    <div class="form-title">方便留下基本資料嗎？</div>
+    <div class="form-sub">提前登記可加快服務速度<br>也可以直接略過，不影響取號</div>
+    <div class="form-field"><label class="form-label">姓名</label><input class="form-input" id="input-name" type="text" placeholder="請輸入姓名（選填）" maxlength="20"/></div>
+    <div class="form-field"><label class="form-label">聯絡電話</label><input class="form-input" id="input-phone" type="tel" placeholder="請輸入電話（選填）" maxlength="20"/></div>
+    <div class="form-actions">
+      <button class="form-skip" onclick="submitBForm(false)">略過</button>
+      <button class="form-submit" onclick="submitBForm(true)">確認，領取號碼牌</button>
+    </div>
+    <div class="form-note">資料僅供本次服務使用</div>
+  </div>
+</div>
+
+<!-- 號碼牌視窗 -->
+<div class="overlay" id="modal" onclick="maybeClose(event)">
+  <div class="overlay-box">
+    <div class="modal-tag">號碼牌</div>
+    <div class="modal-num" id="modal-num">—</div>
+    <div class="modal-service" id="modal-service"></div>
+    <div class="modal-info" id="modal-info"></div>
+    <button class="modal-close" onclick="closeModal()">確認，已收好號碼牌</button>
+  </div>
+</div>
+
+<!-- 離開視窗 -->
+<div class="overlay" id="leave-overlay">
+  <div class="overlay-box">
+    <div class="leave-title">離開原因</div>
+    <div class="leave-sub">請選擇您離開的原因，幫助我們改善服務</div>
+    <div class="leave-options">
+      <button class="leave-option" onclick="selectLeave(this,0)">等待時間太長</button>
+      <button class="leave-option" onclick="selectLeave(this,1)">臨時有事需要離開</button>
+      <button class="leave-option" onclick="selectLeave(this,2)">改天再來</button>
+    </div>
+    <div class="leave-footer">
+      <button class="leave-cancel" onclick="closeLeave()">取消</button>
+      <button class="leave-confirm" id="leave-confirm-btn" onclick="confirmLeave()" disabled>確認離開</button>
+    </div>
+  </div>
+</div>
+
+<!-- 評分視窗 -->
+<div class="overlay" id="rating-overlay">
+  <div class="overlay-box" id="rating-box">
+    <div class="rating-title">服務滿意度</div>
+    <div class="rating-sub">請為本次服務評分，謝謝您的回饋！</div>
+    <div class="stars">
+      <span class="star" onclick="setStar(1)">★</span>
+      <span class="star" onclick="setStar(2)">★</span>
+      <span class="star" onclick="setStar(3)">★</span>
+      <span class="star" onclick="setStar(4)">★</span>
+      <span class="star" onclick="setStar(5)">★</span>
+    </div>
+    <textarea class="rating-textarea" id="rating-comment" placeholder="請填寫您的建議（選填）"></textarea>
+    <div class="rating-actions">
+      <button class="rating-skip" onclick="closeRating()">略過</button>
+      <button class="rating-submit" id="rating-submit-btn" onclick="submitRating()" disabled>送出評分</button>
+    </div>
+    <div class="rating-done" id="rating-done">
+      <div class="rating-done-icon">🎉</div>
+      <div class="rating-done-text">感謝您的回饋！</div>
+      <div class="rating-done-sub">您的意見對我們很重要</div>
+    </div>
+  </div>
+</div>
+
+<!-- 被叫號提示視窗 -->
+<div class="overlay" id="called-overlay">
+  <div class="overlay-box" style="text-align:center;padding:2.5rem 2rem">
+    <div style="font-size:13px;font-weight:700;color:var(--text3);letter-spacing:0.1em;margin-bottom:12px">輪到您了！</div>
+    <div style="font-family:'DM Mono',monospace;font-size:88px;font-weight:500;line-height:1;letter-spacing:-3px;color:var(--accent);margin-bottom:10px" id="called-num">—</div>
+    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px" id="called-service"></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">請前往櫃台辦理服務<br>請勿離開服務區域</div>
+    <button onclick="closeCalledAlert()" style="width:100%;padding:13px;border-radius:var(--radius-sm);border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif">我知道了，前往櫃台</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Firebase 設定 ──
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDkm01ZoMeGbie9rJ2degXB3WkBMBJsPac",
+  authDomain:        "cqu-24ff6.firebaseapp.com",
+  databaseURL:       "https://cqu-24ff6-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "cqu-24ff6",
+  storageBucket:     "cqu-24ff6.firebasestorage.app",
+  messagingSenderId: "969459695687",
+  appId:             "1:969459695687:web:502518a525514f0474b162"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+var db = firebase.database();
+
+// ── 狀態 ──
+var meta = {
+  A:{name:'更新'}, B:{name:'送修'}, C:{name:'取件 / 諮詢'}
+};
+var deviceId = sessionStorage.getItem('deviceId');
+if(!deviceId){deviceId='dev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);sessionStorage.setItem('deviceId',deviceId);}
+var myTicket    = sessionStorage.getItem('myTicket')||null;
+var myTicketKey = sessionStorage.getItem('myTicketKey')||null;
+var myCat       = sessionStorage.getItem('myCat')||null;
+var selectedLeaveReason = -1;
+var selectedStar = 0;
+
+// ── 頁面載入：若已取票則鎖定 ──
+window.addEventListener('DOMContentLoaded', function(){
+  if(myTicket){
+    lockButtons();
+    var numStr = myTicket.replace(/^[A-C]/,'');
+    document.getElementById('my-ticket-display').textContent = numStr;
+    document.getElementById('my-ticket-cat').textContent = '服務類別：'+(meta[myCat]||{name:''}).name;
+    document.getElementById('my-ticket-bar').classList.add('show');
+    document.getElementById('main').classList.add('main-with-bar');
+  }
+});
+
+// ── 鎖定 / 解鎖 ──
+function lockButtons(){
+  ['A','B','C'].forEach(function(cat){
+    var card = document.getElementById('card-'+cat);
+    var btn  = document.getElementById('btn-'+cat);
+    if(card) card.classList.add('locked');
+    if(btn){btn.disabled=true;btn.textContent='已取號';}
+  });
+  var n = document.getElementById('taken-notice');
+  if(n) n.classList.add('show');
+}
+function unlockButtons(){
+  var labels = {A:'領取號碼牌 →', B:'領取號碼牌 →', C:'領取號碼牌 →'};
+  ['A','B','C'].forEach(function(cat){
+    var card = document.getElementById('card-'+cat);
+    var btn  = document.getElementById('btn-'+cat);
+    if(card) card.classList.remove('locked');
+    if(btn){btn.disabled=false;btn.textContent=labels[cat];}
+  });
+  var n = document.getElementById('taken-notice');
+  if(n) n.classList.remove('show');
+}
+
+// ── 被叫號時通知（震動 + 提示） ──
+function notifyCalledNumber(ticket, serviceName){
+  var numOnly = ticket.replace(/^[A-C]/,'').replace(/^0+/,'');
+  // 震動：長震 500ms，停 200ms，再震 500ms
+  if(navigator.vibrate){
+    navigator.vibrate([500,200,500,200,500]);
+  }
+  // 顯示叫號提示視窗
+  showCalledAlert(numOnly, serviceName);
+}
+
+// ── 叫號提示視窗 ──
+function showCalledAlert(num, serviceName){
+  var overlay = document.getElementById('called-overlay');
+  if(!overlay) return;
+  document.getElementById('called-num').textContent = num;
+  document.getElementById('called-service').textContent = serviceName;
+  overlay.classList.add('open');
+  // 10秒後自動關閉
+  if(window._calledTimer) clearTimeout(window._calledTimer);
+  window._calledTimer = setTimeout(function(){ overlay.classList.remove('open'); }, 10000);
+}
+function closeCalledAlert(){
+  document.getElementById('called-overlay').classList.remove('open');
+  if(window._calledTimer) clearTimeout(window._calledTimer);
+}
+db.ref('.info/connected').on('value', function(s){
+  document.getElementById('conn-dot').className = 'conn-dot '+(s.val()?'online':'offline');
+});
+
+db.ref('queue').on('value', function(snap){
+  var data = snap.val()||{};
+  ['A','B','C'].forEach(function(cat){
+    var cd = data[cat]||{};
+    var q  = cd.queue ? Object.keys(cd.queue).length : 0;
+    var el = document.getElementById('wait-'+cat);
+    if(el) el.textContent = q;
+    // 偵測自己的號碼是否被叫到
+    if(myTicket && cd.serving === myTicket){
+      var prevServing = sessionStorage.getItem('lastServing_'+cat)||'';
+      if(prevServing !== myTicket){
+        sessionStorage.setItem('lastServing_'+cat, myTicket);
+        notifyCalledNumber(myTicket, meta[cat].name);
+      }
+    }
+  });
+  var gc = data.globalCounter||0;
+  var tn = document.getElementById('total-num');
+  var prev = tn.textContent;
+  var next = gc>0?String(gc):'—';
+  tn.textContent = next;
+  if(prev!==next&&gc>0){tn.classList.remove('pulse');void tn.offsetWidth;tn.classList.add('pulse');}
+  // 評分觸發（一對一）
+  var tr = data.ratingTrigger||null;
+  if(tr&&tr.active&&tr.deviceId===deviceId){
+    if(!document.getElementById('rating-overlay').classList.contains('open')){
+      openRating();
+      db.ref('queue/ratingTrigger').set({active:false,deviceId:null});
+    }
+  }
+});
+
+// ── 取票 ──
+function takeTicket(cat){
+  if(myTicket){showToast('您已領取號碼牌');return;}
+  // 直接 push 一筆資料到隊列，用 push key 當 ticketKey
+  var queueRef = db.ref('queue/'+cat+'/queue');
+  var newRef   = queueRef.push();
+  var ticketKey = newRef.key;
+  // 讀取當前 globalCounter，加 1 後寫入
+  db.ref('queue/globalCounter').once('value', function(snap){
+    var globalNum = (snap.val()||0)+1;
+    var numStr = cat+String(globalNum).padStart(3,'0');
+    // 一次寫入所有資料
+    var updates = {};
+    updates['queue/globalCounter'] = globalNum;
+    updates['queue/'+cat+'/counter'] = firebase.database.ServerValue.increment(1);
+    updates['queue/'+cat+'/queue/'+ticketKey] = numStr;
+    updates['queue/devices/'+ticketKey] = {deviceId:deviceId,ticket:numStr,cat:cat,ts:Date.now()};
+    db.ref().update(updates, function(err){
+      if(err){
+        console.error('Firebase write error:', err);
+        showToast('取票失敗，請再試一次');
+        return;
+      }
+      myTicket=numStr; myTicketKey=ticketKey; myCat=cat;
+      sessionStorage.setItem('myTicket',numStr);
+      sessionStorage.setItem('myTicketKey',ticketKey);
+      sessionStorage.setItem('myCat',cat);
+      lockButtons();
+      document.getElementById('my-ticket-display').textContent = String(globalNum);
+      document.getElementById('my-ticket-cat').textContent = '服務類別：'+meta[cat].name;
+      document.getElementById('my-ticket-bar').classList.add('show');
+      document.getElementById('main').classList.add('main-with-bar');
+      db.ref('queue/'+cat+'/queue').once('value', function(s){
+        var qLen = s.val()?Object.keys(s.val()).length:1;
+        document.getElementById('modal-num').textContent = String(globalNum);
+        document.getElementById('modal-service').textContent = '服務類別：'+meta[cat].name;
+        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播';
+        document.getElementById('modal').classList.add('open');
+      });
+    });
+  }, function(err){
+    console.error('Read error:', err);
+    showToast('取票失敗，請確認網路連線');
+  });
+}
+
+// ── B類填寫 ──
+function openBForm(){
+  if(myTicket){showToast('您已領取號碼牌');return;}
+  document.getElementById('input-name').value='';
+  document.getElementById('input-phone').value='';
+  document.getElementById('form-overlay').classList.add('open');
+}
+function submitBForm(withData){
+  document.getElementById('form-overlay').classList.remove('open');
+  var extra = withData ? {
+    name:  document.getElementById('input-name').value.trim(),
+    phone: document.getElementById('input-phone').value.trim()
+  } : null;
+  var cat = 'B';
+  var ticketKey = db.ref('queue/B/queue').push().key;
+  db.ref('queue/globalCounter').once('value', function(snap){
+    var globalNum = (snap.val()||0)+1;
+    var numStr = cat+String(globalNum).padStart(3,'0');
+    var updates = {};
+    updates['queue/globalCounter'] = globalNum;
+    updates['queue/'+cat+'/counter'] = firebase.database.ServerValue.increment(1);
+    updates['queue/'+cat+'/queue/'+ticketKey] = numStr;
+    updates['queue/devices/'+ticketKey] = {deviceId:deviceId,ticket:numStr,cat:cat,ts:Date.now()};
+    if(extra&&(extra.name||extra.phone)){
+      updates['queue/B/contacts/'+ticketKey] = {ticket:numStr,name:extra.name||'',phone:extra.phone||'',time:new Date().toLocaleTimeString('zh-TW',{hour12:false})};
+    }
+    db.ref().update(updates, function(err){
+      if(err){ console.error('B write error:',err); showToast('取票失敗，請再試一次'); return; }
+      myTicket=numStr; myTicketKey=ticketKey; myCat=cat;
+      sessionStorage.setItem('myTicket',numStr);
+      sessionStorage.setItem('myTicketKey',ticketKey);
+      sessionStorage.setItem('myCat',cat);
+      lockButtons();
+      document.getElementById('my-ticket-display').textContent = String(globalNum);
+      document.getElementById('my-ticket-cat').textContent = '服務類別：'+meta[cat].name;
+      document.getElementById('my-ticket-bar').classList.add('show');
+      document.getElementById('main').classList.add('main-with-bar');
+      db.ref('queue/'+cat+'/queue').once('value', function(s){
+        var qLen = s.val()?Object.keys(s.val()).length:1;
+        document.getElementById('modal-num').textContent = String(globalNum);
+        document.getElementById('modal-service').textContent = '服務類別：'+meta[cat].name;
+        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播';
+        document.getElementById('modal').classList.add('open');
+      });
+    });
+  }, function(err){ console.error('B read error:',err); showToast('取票失敗，請確認網路連線'); });
+}
+
+// ── Modal ──
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+function maybeClose(e){ if(e.target===document.getElementById('modal')) closeModal(); }
+
+// ── 離開 ──
+function openLeave(){
+  selectedLeaveReason=-1;
+  document.querySelectorAll('.leave-option').forEach(function(b){b.classList.remove('selected');});
+  document.getElementById('leave-confirm-btn').disabled=true;
+  document.getElementById('leave-overlay').classList.add('open');
+}
+function closeLeave(){ document.getElementById('leave-overlay').classList.remove('open'); }
+function selectLeave(btn,idx){
+  document.querySelectorAll('.leave-option').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  selectedLeaveReason=idx;
+  document.getElementById('leave-confirm-btn').disabled=false;
+}
+function confirmLeave(){
+  if(selectedLeaveReason<0||!myTicketKey||!myCat) return;
+  var reasons=['等待時間太長','臨時有事需要離開','改天再來'];
+  db.ref('queue/'+myCat+'/queue/'+myTicketKey).remove();
+  db.ref('leaveReasons/r_'+Date.now()).set({reason:reasons[selectedLeaveReason],idx:selectedLeaveReason,ticket:myTicket,cat:myCat,time:new Date().toLocaleTimeString('zh-TW',{hour12:false})});
+  var leaveRef = {}; leaveRef['leaveSummary/'+selectedLeaveReason] = firebase.database.ServerValue.increment(1); db.ref().update(leaveRef);
+  myTicket=null; myTicketKey=null; myCat=null;
+  ['myTicket','myTicketKey','myCat'].forEach(function(k){sessionStorage.removeItem(k);});
+  document.getElementById('leave-overlay').classList.remove('open');
+  document.getElementById('my-ticket-bar').classList.remove('show');
+  document.getElementById('main').classList.remove('main-with-bar');
+  unlockButtons();
+  showToast('已為您移除號碼，感謝您的回饋');
+}
+
+// ── 評分 ──
+function openRating(){
+  selectedStar=0;
+  document.querySelectorAll('.star').forEach(function(s){s.classList.remove('on');});
+  document.getElementById('rating-comment').value='';
+  document.getElementById('rating-submit-btn').disabled=true;
+  document.getElementById('rating-done').style.display='none';
+  document.getElementById('rating-overlay').classList.add('open');
+}
+function closeRating(){ document.getElementById('rating-overlay').classList.remove('open'); }
+function setStar(n){
+  selectedStar=n;
+  document.querySelectorAll('.star').forEach(function(s,i){
+    s.classList.toggle('on',i<n);
+  });
+  document.getElementById('rating-submit-btn').disabled=false;
+}
+function submitRating(){
+  if(!selectedStar) return;
+  var comment = document.getElementById('rating-comment').value.trim();
+  var now = new Date();
+  db.ref('ratings/r_'+Date.now()).set({
+    stars:selectedStar, comment:comment,
+    time: now.toLocaleTimeString('zh-TW',{hour12:false}),
+    date: now.toLocaleDateString('zh-TW'),
+    ts:   now.getTime()
+  });
+  document.getElementById('rating-done').style.display='block';
+  setTimeout(function(){ closeRating(); }, 2000);
+}
+
+// ── 時鐘 & Toast ──
+function tick(){ document.getElementById('clock').textContent=new Date().toLocaleTimeString('zh-TW',{hour12:false}); }
+tick(); setInterval(tick,1000);
+var toastTimer;
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},2500);
+}
+</script>
+</body>
+</html>
