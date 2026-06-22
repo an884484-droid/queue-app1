@@ -227,31 +227,6 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
   </div>
 </div>
 
-<!-- 評分視窗 -->
-<div class="overlay" id="rating-overlay">
-  <div class="overlay-box" id="rating-box">
-    <div class="rating-title">服務滿意度</div>
-    <div class="rating-sub">請為本次服務評分，謝謝您的回饋！</div>
-    <div class="stars">
-      <span class="star" onclick="setStar(1)">★</span>
-      <span class="star" onclick="setStar(2)">★</span>
-      <span class="star" onclick="setStar(3)">★</span>
-      <span class="star" onclick="setStar(4)">★</span>
-      <span class="star" onclick="setStar(5)">★</span>
-    </div>
-    <textarea class="rating-textarea" id="rating-comment" placeholder="請填寫您的建議（選填）"></textarea>
-    <div class="rating-actions">
-      <button class="rating-skip" onclick="closeRating()">略過</button>
-      <button class="rating-submit" id="rating-submit-btn" onclick="submitRating()" disabled>送出評分</button>
-    </div>
-    <div class="rating-done" id="rating-done">
-      <div class="rating-done-icon">🎉</div>
-      <div class="rating-done-text">感謝您的回饋！</div>
-      <div class="rating-done-sub">您的意見對我們很重要</div>
-    </div>
-  </div>
-</div>
-
 <!-- 被叫號提示視窗 -->
 <div class="overlay" id="called-overlay">
   <div class="overlay-box" style="text-align:center;padding:2.5rem 2rem">
@@ -379,13 +354,11 @@ db.ref('queue').on('value', function(snap){
   var next = gc>0?String(gc):'—';
   tn.textContent = next;
   if(prev!==next&&gc>0){tn.classList.remove('pulse');void tn.offsetWidth;tn.classList.add('pulse');}
-  // 評分觸發（一對一）
+  // 評分觸發（一對一）→ 改為導向外部評分網址
   var tr = data.ratingTrigger||null;
   if(tr&&tr.active&&tr.deviceId===deviceId){
-    if(!document.getElementById('rating-overlay').classList.contains('open')){
-      openRating();
-      db.ref('queue/ratingTrigger').set({active:false,deviceId:null});
-    }
+    db.ref('queue/ratingTrigger').set({active:false,deviceId:null});
+    window.open('https://feedback.garmin.com/EFM/se/46E3B818471932A6', '_blank');
   }
 });
 
@@ -514,37 +487,6 @@ function confirmLeave(){
   document.getElementById('main').classList.remove('main-with-bar');
   unlockButtons();
   showToast('已為您移除號碼，感謝您的回饋');
-}
-
-// ── 評分 ──
-function openRating(){
-  selectedStar=0;
-  document.querySelectorAll('.star').forEach(function(s){s.classList.remove('on');});
-  document.getElementById('rating-comment').value='';
-  document.getElementById('rating-submit-btn').disabled=true;
-  document.getElementById('rating-done').style.display='none';
-  document.getElementById('rating-overlay').classList.add('open');
-}
-function closeRating(){ document.getElementById('rating-overlay').classList.remove('open'); }
-function setStar(n){
-  selectedStar=n;
-  document.querySelectorAll('.star').forEach(function(s,i){
-    s.classList.toggle('on',i<n);
-  });
-  document.getElementById('rating-submit-btn').disabled=false;
-}
-function submitRating(){
-  if(!selectedStar) return;
-  var comment = document.getElementById('rating-comment').value.trim();
-  var now = new Date();
-  db.ref('ratings/r_'+Date.now()).set({
-    stars:selectedStar, comment:comment,
-    time: now.toLocaleTimeString('zh-TW',{hour12:false}),
-    date: now.toLocaleDateString('zh-TW'),
-    ts:   now.getTime()
-  });
-  document.getElementById('rating-done').style.display='block';
-  setTimeout(function(){ closeRating(); }, 2000);
 }
 
 // ── 時鐘 & Toast ──

@@ -244,21 +244,10 @@ main{padding:2rem;max-width:900px;margin:0 auto}
       <div class="rating-section-title">服務滿意度</div>
       <button class="request-rating-btn" onclick="requestRating()">請客戶評分</button>
     </div>
-    <div class="rating-summary">
-      <div style="text-align:center;flex-shrink:0">
-        <div class="rating-avg-big" id="avg-score">—</div>
-        <div class="rating-avg-stars" id="avg-stars">☆☆☆☆☆</div>
-        <div class="rating-avg-sub" id="rating-count-label">0 筆評分</div>
-      </div>
-      <div style="flex:1;min-width:140px;display:flex;flex-direction:column;gap:4px">
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">5★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-5" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-5-n" style="width:16px">0</span></div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">4★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-4" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-4-n" style="width:16px">0</span></div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">3★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-3" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-3-n" style="width:16px">0</span></div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">2★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-2" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-2-n" style="width:16px">0</span></div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:18px;text-align:right">1★</span><div style="flex:1;height:7px;background:var(--surface2);border-radius:999px;overflow:hidden"><div id="dist-1" style="height:100%;background:#EF9F27;border-radius:999px;width:0%;transition:width 0.4s"></div></div><span id="dist-1-n" style="width:16px">0</span></div>
-      </div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6">
+      點擊上方按鈕，會在被叫號客戶的手機上開啟外部評分網址（Garmin 表單）。<br>
+      評分結果將直接記錄於外部系統，本頁不再顯示統計資料。
     </div>
-    <div class="rating-log" id="rating-log"><span class="rating-empty">尚無評分紀錄</span></div>
   </div>
   <div class="rating-section" style="margin-top:1.5rem">
     <div class="rating-section-header">
@@ -499,7 +488,7 @@ window.resetAll=async function(){
   renderLogList(callLog);
   showToast('已重置號碼，歷史紀錄保留中');
 };
-// ── 觸發一對一評分：查出票號對應的裝置 ID，只通知那個裝置 ──
+// ── 觸發一對一評分：查出票號對應的裝置 ID，只通知那個裝置，導向外部評分網址 ──
 window.requestRating=async function(){
   if(!lastCalledTicket){showToast('請先叫號後再發送評分');return;}
   const devSnap=await get(ref(db,'queue/devices'));
@@ -509,56 +498,6 @@ window.requestRating=async function(){
   await set(ref(db,'queue/ratingTrigger'),{active:true,deviceId:found.deviceId,ticket:lastCalledTicket,ts:Date.now()});
   showToast('已發送評分邀請給 '+lastCalledTicket+' 號客戶');
 };
-// ── 即時監聽評分資料 ──
-onValue(ref(db,'ratings'),snap=>{
-  const data=snap.val()||{};
-  const entries=Object.values(data);
-  const count=entries.length;
-  const totalStars=entries.reduce((s,e)=>s+e.stars,0);
-  const avg=count>0?(totalStars/count).toFixed(1):null;
-  document.getElementById('rating-count-label').textContent=count+' 筆評分';
-  document.getElementById('avg-score').textContent=avg||'—';
-  const starsFilled=avg?Math.round(parseFloat(avg)):0;
-  document.getElementById('avg-stars').textContent='★'.repeat(starsFilled)+'☆'.repeat(5-starsFilled);
-  // 分佈統計
-  const dist={1:0,2:0,3:0,4:0,5:0};
-  entries.forEach(e=>dist[e.stars]=(dist[e.stars]||0)+1);
-  const maxD=Math.max(...Object.values(dist),1);
-  [1,2,3,4,5].forEach(s=>{
-    document.getElementById('dist-'+s+'-n').textContent=dist[s];
-    document.getElementById('dist-'+s).style.width=Math.round((dist[s]/maxD)*100)+'%';
-  });
-  // 留言列表（依日期分組，最新日期在最上面）
-  const logEl=document.getElementById('rating-log');
-  if(!count){logEl.innerHTML='<span class="rating-empty">尚無評分紀錄</span>';return;}
-  // 排序：有 ts 用 ts，沒有用 time 字串
-  const sorted=[...entries].sort((a,b)=>(b.ts||0)-(a.ts||0)||(b.time||'').localeCompare(a.time||''));
-  // 依日期分組
-  const groups={};
-  sorted.forEach(e=>{
-    const d=e.date||'日期不明';
-    if(!groups[d])groups[d]=[];
-    groups[d].push(e);
-  });
-  // 依日期排序（最新在前）
-  const dateKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
-  const today=new Date().toLocaleDateString('zh-TW');
-  let html='';
-  dateKeys.forEach(date=>{
-    const label=date===today?'今天（'+date+'）':date;
-    html+='<div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.06em;padding:8px 0 4px;border-bottom:0.5px solid var(--border);margin-bottom:6px;">'+label+'</div>';
-    groups[date].slice(0,20).forEach(e=>{
-      html+='<div class="rating-item">'+
-        '<div class="rating-item-header">'+
-        '<span class="rating-stars-small">'+'★'.repeat(e.stars)+'☆'.repeat(5-e.stars)+'</span>'+
-        '<span class="rating-item-time">'+e.time+'</span>'+
-        '</div>'+
-        (e.comment?'<div class="rating-item-comment">'+e.comment+'</div>':'')+
-        '</div>';
-    });
-  });
-  logEl.innerHTML=html;
-});
 function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('zh-TW',{hour12:false});}
 tick();setInterval(tick,1000);
 let tt;
