@@ -238,6 +238,19 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
   </div>
 </div>
 
+<!-- 服務滿意度提示視窗 -->
+<div class="overlay" id="feedback-overlay">
+  <div class="overlay-box" style="text-align:center;padding:2.5rem 2rem">
+    <div style="font-size:40px;margin-bottom:14px">⭐</div>
+    <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px">感謝您使用本次服務</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:24px;line-height:1.6">請點擊下方按鈕，<br>為本次服務留下您的評分與建議</div>
+    <a href="https://feedback.garmin.com/EFM/se/46E3B818471932A6" target="_blank" rel="noopener"
+       style="display:block;width:100%;padding:13px;border-radius:var(--radius-sm);background:var(--accent);color:#fff;font-size:15px;font-weight:700;font-family:'Noto Sans TC',sans-serif;text-decoration:none;box-sizing:border-box;margin-bottom:10px"
+       onclick="closeFeedback()">點此前往評分 →</a>
+    <button onclick="closeFeedback()" style="width:100%;padding:11px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);background:none;color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif">略過</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -328,6 +341,9 @@ function closeCalledAlert(){
   document.getElementById('called-overlay').classList.remove('open');
   if(window._calledTimer) clearTimeout(window._calledTimer);
 }
+function closeFeedback(){
+  document.getElementById('feedback-overlay').classList.remove('open');
+}
 db.ref('.info/connected').on('value', function(s){
   document.getElementById('conn-dot').className = 'conn-dot '+(s.val()?'online':'offline');
 });
@@ -354,11 +370,11 @@ db.ref('queue').on('value', function(snap){
   var next = gc>0?String(gc):'—';
   tn.textContent = next;
   if(prev!==next&&gc>0){tn.classList.remove('pulse');void tn.offsetWidth;tn.classList.add('pulse');}
-  // 評分觸發（一對一）→ 改為導向外部評分網址
+  // 評分觸發（一對一）→ 顯示前往評分按鈕視窗
   var tr = data.ratingTrigger||null;
   if(tr&&tr.active&&tr.deviceId===deviceId){
     db.ref('queue/ratingTrigger').set({active:false,deviceId:null});
-    window.open('https://feedback.garmin.com/EFM/se/46E3B818471932A6', '_blank');
+    document.getElementById('feedback-overlay').classList.add('open');
   }
 });
 
