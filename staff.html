@@ -154,7 +154,7 @@ main{padding:2rem;max-width:900px;margin:0 auto}
       <div class="queue-chips" id="chips-A"><span class="chips-empty">無</span></div>
     </div>
     <div class="staff-card b">
-      <div class="staff-card-header"><span class="staff-cat-badge">B — 送修</span><span class="staff-count">等候 <span id="cnt-B">0</span> 人</span></div>
+      <div class="staff-card-header"><span class="staff-cat-badge">B — 送修 / 購買配件</span><span class="staff-count">等候 <span id="cnt-B">0</span> 人</span></div>
       <div class="now-serving-label">服務中</div>
       <div class="now-serving-num" id="srv-B"><span style="font-size:24px;color:var(--text3)">—</span></div>
       <div class="contact-box" id="contact-box">
@@ -293,7 +293,7 @@ const FIREBASE_CONFIG = {
     messagingSenderId: "969459695687",
     appId:             "1:969459695687:web:502518a525514f0474b162"
   };
-const meta={A:{name:'更新',color:'#185FA5'},B:{name:'送修',color:'#993C1D'},C:{name:'取件 / 諮詢',color:'#3B6D11'}};
+const meta={A:{name:'更新',color:'#185FA5'},B:{name:'送修 / 購買配件',color:'#993C1D'},C:{name:'取件 / 諮詢',color:'#3B6D11'}};
 const app=initializeApp(FIREBASE_CONFIG);
 const db=getDatabase(app);
 const callLog=[];
@@ -556,25 +556,7 @@ window.exportExcel=async function(){
     ws1['!cols']=[{wch:14},{wch:10},{wch:10},{wch:8},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws1, '叫號紀錄（全部）');
 
-    // ── 工作表2：服務滿意度 ──
-    const ratingRows=[['日期','時間','星數','留言']];
-    const ratings=data.ratings||{};
-    Object.values(ratings).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(r=>{
-      ratingRows.push([r.date||today, r.time||'', r.stars||'', r.comment||'']);
-    });
-    if(ratingRows.length===1) ratingRows.push(['（尚無評分資料）','','','']);
-    const rVals=Object.values(ratings);
-    const avg=rVals.length?(rVals.reduce((s,r)=>s+(r.stars||0),0)/rVals.length).toFixed(1):0;
-    ratingRows.push([]);
-    ratingRows.push(['總評分筆數',rVals.length,'平均分數',avg]);
-    const dist={1:0,2:0,3:0,4:0,5:0};
-    rVals.forEach(r=>dist[r.stars]=(dist[r.stars]||0)+1);
-    [1,2,3,4,5].forEach(s=>ratingRows.push([s+'星',dist[s],'','']));
-    const ws2=XLSX.utils.aoa_to_sheet(ratingRows);
-    ws2['!cols']=[{wch:14},{wch:10},{wch:8},{wch:30}];
-    XLSX.utils.book_append_sheet(wb, ws2, '服務滿意度');
-
-    // ── 工作表3：中途離開統計 ──
+    // ── 工作表2：中途離開統計 ──
     const leaveReasonNames=['等待時間太長','臨時有事需要離開','改天再來'];
     const leaveSummary=data.leaveSummary||{};
     const leaveLog=data.leaveReasons||{};
@@ -591,11 +573,11 @@ window.exportExcel=async function(){
       leaveRows.push([l.time||'', l.ticket||'', l.reason||'']);
     });
     if(!Object.keys(leaveLog).length) leaveRows.push(['（尚無離開紀錄）','','']);
-    const ws3=XLSX.utils.aoa_to_sheet(leaveRows);
-    ws3['!cols']=[{wch:20},{wch:8},{wch:10}];
-    XLSX.utils.book_append_sheet(wb, ws3, '中途離開統計');
+    const ws2=XLSX.utils.aoa_to_sheet(leaveRows);
+    ws2['!cols']=[{wch:20},{wch:8},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws2, '中途離開統計');
 
-    // ── 工作表4：每日摘要 ──
+    // ── 工作表3：每日摘要 ──
     const queueData=data.queue||{};
     const sumRows=[['匯出時間',now],['匯出日期',today],[],['類別','取票總數','已服務']];
     ['A','B','C'].forEach(cat=>{
@@ -603,18 +585,16 @@ window.exportExcel=async function(){
       sumRows.push([meta[cat].name, cd.counter||0, cd.served||0]);
     });
     sumRows.push([]);
-    sumRows.push(['評分總數', rVals.length]);
-    sumRows.push(['平均分數', avg]);
     sumRows.push(['中途離開總次數', leaveReasonNames.reduce((_,__,i)=>_+(leaveSummary[i]||0),0)]);
     sumRows.push([]);
     sumRows.push(['叫號歷史日數', allDates.length]);
     const totalHistLog=allDates.reduce((s,d)=>s+Object.keys(historyData[d]||{}).length,0);
     sumRows.push(['歷史叫號總筆數', totalHistLog]);
-    const ws4=XLSX.utils.aoa_to_sheet(sumRows);
-    ws4['!cols']=[{wch:16},{wch:14}];
-    XLSX.utils.book_append_sheet(wb, ws4, '每日摘要');
+    const ws3=XLSX.utils.aoa_to_sheet(sumRows);
+    ws3['!cols']=[{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws3, '每日摘要');
 
-    // ── 工作表5：月份統計 ──
+    // ── 工作表4：月份統計 ──
     const monthMap={};
     allDates.forEach(date=>{
       const month=date.slice(0,7);
@@ -631,41 +611,61 @@ window.exportExcel=async function(){
     });
 
     const sortedMonths=Object.keys(monthMap).sort((a,b)=>new Date(a+'-1')-new Date(b+'-1')); // 舊→新（數值比較）
+    const maxMonthTotal=Math.max(...sortedMonths.map(m=>monthMap[m].total),1);
     const monthRows=[
       ['月份統計報表'],
       ['匯出時間', now],
       [],
-      ['月份','叫號總數','更新(A)','送修(B)','取件/諮詢(C)','服務天數','日均叫號數'],
+      ['月份','叫號總數','更新(A)','送修/購買配件(B)','取件/諮詢(C)','服務天數','日均叫號數','趨勢圖'],
     ];
     let gTotal=0,gA=0,gB=0,gC=0,gDays=0;
     sortedMonths.forEach(month=>{
       const m=monthMap[month];
       const days=Object.keys(m.days).length;
       const avg=days>0?(m.total/days).toFixed(1):0;
-      monthRows.push([month, m.total, m.A, m.B, m.C, days, avg]);
+      const barLen=Math.round((m.total/maxMonthTotal)*20);
+      const bar='█'.repeat(barLen)+'░'.repeat(20-barLen);
+      monthRows.push([month, m.total, m.A, m.B, m.C, days, avg, bar]);
       gTotal+=m.total; gA+=m.A; gB+=m.B; gC+=m.C; gDays+=days;
     });
-    if(!sortedMonths.length) monthRows.push(['（尚無歷史資料）','','','','','','']);
+    if(!sortedMonths.length) monthRows.push(['（尚無歷史資料）','','','','','','','']);
     monthRows.push([]);
     monthRows.push(['合計', gTotal, gA, gB, gC, gDays,
-      gDays>0?(gTotal/gDays).toFixed(1):0]);
+      gDays>0?(gTotal/gDays).toFixed(1):0, '']);
 
     // 每月每日明細
     monthRows.push([]);
-    monthRows.push(['── 每日明細 ──','','','','','','']);
-    monthRows.push(['日期','叫號筆數','','','','','']);
+    monthRows.push(['── 每日明細 ──','','','','','','','']);
+    monthRows.push(['日期','叫號筆數','','','','','','']);
     sortedMonths.forEach(month=>{
       const m=monthMap[month];
-      monthRows.push([month+'（月份）','','','','','','']);
+      monthRows.push([month+'（月份）','','','','','','','']);
       Object.keys(m.days).sort((a,b)=>new Date(a)-new Date(b)).forEach(date=>{
-        monthRows.push(['', date, m.days[date],'','','','']);
+        monthRows.push(['', date, m.days[date],'','','','','']);
       });
       monthRows.push([]);
     });
 
-    const ws5=XLSX.utils.aoa_to_sheet(monthRows);
-    ws5['!cols']=[{wch:14},{wch:12},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12}];
-    XLSX.utils.book_append_sheet(wb, ws5, '月份統計');
+    const ws4=XLSX.utils.aoa_to_sheet(monthRows);
+    ws4['!cols']=[{wch:14},{wch:12},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12},{wch:24}];
+    XLSX.utils.book_append_sheet(wb, ws4, '月份統計');
+
+    // ── 工作表5：月份統計圖表資料（可在 Excel 中選取後插入圖表） ──
+    if(sortedMonths.length > 0){
+      const chartRows=[
+        ['請選取下方資料範圍，於 Excel 上方「插入」→「圖表」→「直條圖」即可產生圖表'],
+        [],
+        ['月份','叫號總數','更新(A)','送修/購買配件(B)','取件/諮詢(C)'],
+      ];
+      sortedMonths.forEach(month=>{
+        const m=monthMap[month];
+        chartRows.push([month, m.total, m.A, m.B, m.C]);
+      });
+      const wsChart=XLSX.utils.aoa_to_sheet(chartRows);
+      wsChart['!cols']=[{wch:12},{wch:12},{wch:10},{wch:14},{wch:14}];
+      XLSX.utils.book_append_sheet(wb, wsChart, '月份統計_圖表資料');
+    }
+
 
     // 下載
     const dateStr=today;

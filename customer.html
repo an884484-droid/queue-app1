@@ -149,7 +149,7 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
       <button class="take-btn" id="btn-A" onclick="takeTicket('A')">領取號碼牌 →</button>
     </div>
     <div class="cat-card b" id="card-B">
-      <div class="cat-code">B 類</div><div class="cat-name">送修</div>
+      <div class="cat-code">B 類</div><div class="cat-name">送修 / 購買配件</div>
       <div class="cat-desc">硬體故障、維修評估、送件登記</div>
       <div class="cat-wait">目前等候 <strong id="wait-B">—</strong> 人</div>
       <button class="take-btn" id="btn-B" onclick="openBForm()">領取號碼牌 →</button>
@@ -186,11 +186,15 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
 <!-- B類填寫視窗 -->
 <div class="overlay" id="form-overlay">
   <div class="overlay-box">
-    <div class="form-badge">B 類 — 送修</div>
+    <div class="form-badge">B 類 — 送修 / 購買配件</div>
     <div class="form-title">方便留下基本資料嗎？</div>
     <div class="form-sub">提前登記可加快服務速度<br>也可以直接略過，不影響取號</div>
     <div class="form-field"><label class="form-label">姓名</label><input class="form-input" id="input-name" type="text" placeholder="請輸入姓名（選填）" maxlength="20"/></div>
     <div class="form-field"><label class="form-label">聯絡電話</label><input class="form-input" id="input-phone" type="tel" placeholder="請輸入電話（選填）" maxlength="20"/></div>
+    <a href="https://repair.garmin.com.tw/" target="_blank" rel="noopener"
+       style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-radius:var(--radius-sm);border:1.5px solid #993C1D;background:#FAECE7;color:#712B13;font-size:13px;font-weight:700;text-decoration:none;box-sizing:border-box;margin-bottom:14px;font-family:'Noto Sans TC',sans-serif">
+      📋 線上報修登記 →
+    </a>
     <div class="form-actions">
       <button class="form-skip" onclick="submitBForm(false)">略過</button>
       <button class="form-submit" onclick="submitBForm(true)">確認，領取號碼牌</button>
@@ -270,7 +274,7 @@ var db = firebase.database();
 
 // ── 狀態 ──
 var meta = {
-  A:{name:'更新'}, B:{name:'送修'}, C:{name:'取件 / 諮詢'}
+  A:{name:'更新'}, B:{name:'送修 / 購買配件'}, C:{name:'取件 / 諮詢'}
 };
 var deviceId = sessionStorage.getItem('deviceId');
 if(!deviceId){deviceId='dev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);sessionStorage.setItem('deviceId',deviceId);}
@@ -344,6 +348,19 @@ function closeCalledAlert(){
 function closeFeedback(){
   document.getElementById('feedback-overlay').classList.remove('open');
 }
+// ── 已叫號後鎖住「我要離開」按鈕 ──
+var calledLocked = false;
+function lockLeaveButton(){
+  if(calledLocked) return;
+  calledLocked = true;
+  var btn = document.querySelector('.my-leave-btn');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = '已叫號，請至櫃台';
+    btn.style.opacity = '0.4';
+    btn.style.cursor = 'not-allowed';
+  }
+}
 db.ref('.info/connected').on('value', function(s){
   document.getElementById('conn-dot').className = 'conn-dot '+(s.val()?'online':'offline');
 });
@@ -362,6 +379,8 @@ db.ref('queue').on('value', function(snap){
         sessionStorage.setItem('lastServing_'+cat, myTicket);
         notifyCalledNumber(myTicket, meta[cat].name);
       }
+      // 已被叫號，鎖住「我要離開」按鈕
+      lockLeaveButton();
     }
   });
   var gc = data.globalCounter||0;
@@ -478,6 +497,7 @@ function maybeClose(e){ if(e.target===document.getElementById('modal')) closeMod
 
 // ── 離開 ──
 function openLeave(){
+  if(calledLocked){ showToast('您已被叫號，請至櫃台辦理'); return; }
   selectedLeaveReason=-1;
   document.querySelectorAll('.leave-option').forEach(function(b){b.classList.remove('selected');});
   document.getElementById('leave-confirm-btn').disabled=true;
