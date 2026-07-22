@@ -157,10 +157,6 @@ main{padding:2rem;max-width:900px;margin:0 auto}
       <div class="staff-card-header"><span class="staff-cat-badge">B — 送修 / 購買配件</span><span class="staff-count">等候 <span id="cnt-B">0</span> 人</span></div>
       <div class="now-serving-label">服務中</div>
       <div class="now-serving-num" id="srv-B"><span style="font-size:24px;color:var(--text3)">—</span></div>
-      <div class="contact-box" id="contact-box">
-        <div class="contact-row" id="contact-name-row"><span>姓名：</span><span id="c-name"></span></div>
-        <div class="contact-row" id="contact-phone-row"><span>電話：</span><span id="c-phone"></span></div>
-      </div>
       <button class="call-next-btn" id="btn-B" onclick="callNext('B')" disabled>叫下一位</button>
       <div class="queue-title">候叫號碼</div>
       <div class="queue-chips" id="chips-B"><span class="chips-empty">無</span></div>
@@ -346,28 +342,6 @@ window.callNext=async function(cat){
   await set(ref(db,'queue/'+cat+'/serving'),fn);
   await runTransaction(ref(db,'queue/'+cat+'/served'),v=>(v||0)+1);
   lastCalledTicket=fn; lastCalledKey=fk;
-  // B類：查詢並顯示聯絡資料
-  const box=document.getElementById('contact-box');
-  if(cat==='B'){
-    try{
-      const cs=await get(ref(db,'queue/B/contacts'));
-      const contacts=cs.val()||{};
-      const found=Object.values(contacts).find(c=>c.ticket===fn);
-      if(found&&(found.name||found.phone)){
-        const nameHtml=found.name?'<div class="contact-row"><span>姓名：</span><span>'+found.name+'</span></div>':'';
-        const phoneHtml=found.phone?'<div class="contact-row"><span>電話：</span><span>'+found.phone+'</span></div>':'';
-        box.innerHTML=nameHtml+phoneHtml;
-        box.classList.add('show');
-      } else {
-        box.innerHTML='<div class="contact-row"><span class="contact-empty">客戶未填寫聯絡資料</span></div>';
-        box.classList.add('show');
-      }
-    }catch(e){
-      box.classList.remove('show');
-    }
-  } else {
-    box.classList.remove('show');
-  }
   // 叫號紀錄（一定要執行到這裡）
   const nowTime=new Date().toLocaleTimeString('zh-TW',{hour12:false});
   const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
@@ -616,38 +590,36 @@ window.exportExcel=async function(){
       ['月份統計報表'],
       ['匯出時間', now],
       [],
-      ['月份','叫號總數','更新(A)','送修/購買配件(B)','取件/諮詢(C)','服務天數','日均叫號數','趨勢圖'],
+      ['月份','叫號總數','更新(A)','送修/購買配件(B)','取件/諮詢(C)','服務天數','日均叫號數'],
     ];
     let gTotal=0,gA=0,gB=0,gC=0,gDays=0;
     sortedMonths.forEach(month=>{
       const m=monthMap[month];
       const days=Object.keys(m.days).length;
       const avg=days>0?(m.total/days).toFixed(1):0;
-      const barLen=Math.round((m.total/maxMonthTotal)*20);
-      const bar='█'.repeat(barLen)+'░'.repeat(20-barLen);
-      monthRows.push([month, m.total, m.A, m.B, m.C, days, avg, bar]);
+      monthRows.push([month, m.total, m.A, m.B, m.C, days, avg]);
       gTotal+=m.total; gA+=m.A; gB+=m.B; gC+=m.C; gDays+=days;
     });
-    if(!sortedMonths.length) monthRows.push(['（尚無歷史資料）','','','','','','','']);
+    if(!sortedMonths.length) monthRows.push(['（尚無歷史資料）','','','','','','']);
     monthRows.push([]);
     monthRows.push(['合計', gTotal, gA, gB, gC, gDays,
-      gDays>0?(gTotal/gDays).toFixed(1):0, '']);
+      gDays>0?(gTotal/gDays).toFixed(1):0]);
 
     // 每月每日明細
     monthRows.push([]);
-    monthRows.push(['── 每日明細 ──','','','','','','','']);
-    monthRows.push(['日期','叫號筆數','','','','','','']);
+    monthRows.push(['── 每日明細 ──','','','','','','']);
+    monthRows.push(['日期','叫號筆數','','','','','']);
     sortedMonths.forEach(month=>{
       const m=monthMap[month];
-      monthRows.push([month+'（月份）','','','','','','','']);
+      monthRows.push([month+'（月份）','','','','','','']);
       Object.keys(m.days).sort((a,b)=>new Date(a)-new Date(b)).forEach(date=>{
-        monthRows.push(['', date, m.days[date],'','','','','']);
+        monthRows.push(['', date, m.days[date],'','','','']);
       });
       monthRows.push([]);
     });
 
     const ws4=XLSX.utils.aoa_to_sheet(monthRows);
-    ws4['!cols']=[{wch:14},{wch:12},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12},{wch:24}];
+    ws4['!cols']=[{wch:14},{wch:12},{wch:10},{wch:10},{wch:14},{wch:10},{wch:12}];
     XLSX.utils.book_append_sheet(wb, ws4, '月份統計');
 
     // ── 工作表5：月份統計圖表資料（可在 Excel 中選取後插入圖表） ──

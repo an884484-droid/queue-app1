@@ -187,17 +187,15 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
 <div class="overlay" id="form-overlay">
   <div class="overlay-box">
     <div class="form-badge">B 類 — 送修 / 購買配件</div>
-    <div class="form-title">方便留下基本資料嗎？</div>
-    <div class="form-sub">提前登記可加快服務速度<br>也可以直接略過，不影響取號</div>
-    <div class="form-field"><label class="form-label">姓名</label><input class="form-input" id="input-name" type="text" placeholder="請輸入姓名（選填）" maxlength="20"/></div>
-    <div class="form-field"><label class="form-label">聯絡電話</label><input class="form-input" id="input-phone" type="tel" placeholder="請輸入電話（選填）" maxlength="20"/></div>
+    <div class="form-title">需要線上報修登記嗎？</div>
+    <div class="form-sub">可先線上填寫報修資料加快服務速度<br>也可以直接略過，不影響取號</div>
     <a href="https://repair.garmin.com.tw/" target="_blank" rel="noopener"
        style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-radius:var(--radius-sm);border:1.5px solid #993C1D;background:#FAECE7;color:#712B13;font-size:13px;font-weight:700;text-decoration:none;box-sizing:border-box;margin-bottom:14px;font-family:'Noto Sans TC',sans-serif">
       📋 線上報修登記 →
     </a>
     <div class="form-actions">
-      <button class="form-skip" onclick="submitBForm(false)">略過</button>
-      <button class="form-submit" onclick="submitBForm(true)">確認，領取號碼牌</button>
+      <button class="form-skip" onclick="submitBForm()">略過</button>
+      <button class="form-submit" onclick="submitBForm()">確認，領取號碼牌</button>
     </div>
     <div class="form-note">資料僅供本次服務使用</div>
   </div>
@@ -433,7 +431,7 @@ function takeTicket(cat){
         var qLen = s.val()?Object.keys(s.val()).length:1;
         document.getElementById('modal-num').textContent = String(globalNum);
         document.getElementById('modal-service').textContent = '服務類別：'+meta[cat].name;
-        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播';
+        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播<br><span style="color:#993C1D;font-weight:700">📸 建議截圖保存此號碼牌</span>';
         document.getElementById('modal').classList.add('open');
       });
     });
@@ -446,16 +444,10 @@ function takeTicket(cat){
 // ── B類填寫 ──
 function openBForm(){
   if(myTicket){showToast('您已領取號碼牌');return;}
-  document.getElementById('input-name').value='';
-  document.getElementById('input-phone').value='';
   document.getElementById('form-overlay').classList.add('open');
 }
-function submitBForm(withData){
+function submitBForm(){
   document.getElementById('form-overlay').classList.remove('open');
-  var extra = withData ? {
-    name:  document.getElementById('input-name').value.trim(),
-    phone: document.getElementById('input-phone').value.trim()
-  } : null;
   var cat = 'B';
   var ticketKey = db.ref('queue/B/queue').push().key;
   db.ref('queue/globalCounter').once('value', function(snap){
@@ -466,9 +458,6 @@ function submitBForm(withData){
     updates['queue/'+cat+'/counter'] = firebase.database.ServerValue.increment(1);
     updates['queue/'+cat+'/queue/'+ticketKey] = numStr;
     updates['queue/devices/'+ticketKey] = {deviceId:deviceId,ticket:numStr,cat:cat,ts:Date.now()};
-    if(extra&&(extra.name||extra.phone)){
-      updates['queue/B/contacts/'+ticketKey] = {ticket:numStr,name:extra.name||'',phone:extra.phone||'',time:new Date().toLocaleTimeString('zh-TW',{hour12:false})};
-    }
     db.ref().update(updates, function(err){
       if(err){ console.error('B write error:',err); showToast('取票失敗，請再試一次'); return; }
       myTicket=numStr; myTicketKey=ticketKey; myCat=cat;
@@ -484,7 +473,7 @@ function submitBForm(withData){
         var qLen = s.val()?Object.keys(s.val()).length:1;
         document.getElementById('modal-num').textContent = String(globalNum);
         document.getElementById('modal-service').textContent = '服務類別：'+meta[cat].name;
-        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播';
+        document.getElementById('modal-info').innerHTML = '前方等候 <strong>'+(qLen-1)+'</strong> 人<br>請留意現場叫號顯示或廣播<br><span style="color:#993C1D;font-weight:700">📸 建議截圖保存此號碼牌</span>';
         document.getElementById('modal').classList.add('open');
       });
     });
