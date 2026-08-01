@@ -188,14 +188,16 @@ main{padding:2rem 1.5rem;max-width:860px;margin:0 auto}
   <div class="overlay-box">
     <div class="form-badge">B 類 — 送修 / 購買配件</div>
     <div class="form-title">需要線上報修登記嗎？</div>
-    <div class="form-sub">可先線上填寫報修資料加快服務速度<br>也可以直接略過，不影響取號</div>
+    <div class="form-sub">請先填寫線上報修資料，可縮短現場等候時間。</div>
     <a href="https://repair.garmin.com.tw/" target="_blank" rel="noopener"
        style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:11px;border-radius:var(--radius-sm);border:1.5px solid #993C1D;background:#FAECE7;color:#712B13;font-size:13px;font-weight:700;text-decoration:none;box-sizing:border-box;margin-bottom:14px;font-family:'Noto Sans TC',sans-serif">
       📋 線上報修登記 →
     </a>
+    <div style="font-size:12px;color:#BA7517;background:#FAEEDA;border-left:3px solid #BA7517;border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:8px 10px;margin-bottom:14px;line-height:1.6;text-align:left">
+      ⚠️ 線上報修完成後，請務必返回本頁抽取號碼牌。
+    </div>
     <div class="form-actions">
-      <button class="form-skip" onclick="submitBForm()">略過</button>
-      <button class="form-submit" onclick="submitBForm()">確認，領取號碼牌</button>
+      <button class="form-submit" onclick="submitBForm()" style="flex:1">領取號碼牌</button>
     </div>
     <div class="form-note">資料僅供本次服務使用</div>
   </div>
