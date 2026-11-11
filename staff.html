@@ -295,6 +295,8 @@ const db=getDatabase(app);
 const callLog=[];
 let lastCalledTicket=null; // 最後叫到的票號
 let lastCalledKey=null;    // 對應的 Firebase key
+const todayDateGlobal=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
+let viewingDate=todayDateGlobal; // 目前畫面上顯示的是哪一天（用來判斷是否要用即時監聽更新畫面）
 onValue(ref(db,'.info/connected'),s=>{
   document.getElementById('conn-dot').className='conn-dot '+(s.val()?'online':'offline');
 });
@@ -333,6 +335,17 @@ onValue(ref(db,'leaveSummary'),snap=>{
   const el=document.getElementById('total-leave');
   if(el) el.textContent=leaveTotal;
 });
+// ── 叫號紀錄 / 人潮時段統計：即時監聽今天的 Firebase history，讓所有裝置同步更新 ──
+onValue(ref(db,'history/'+todayDateGlobal),snap=>{
+  const data=snap.val()||{};
+  const entries=Object.values(data).sort((a,b)=>(b.time||'').localeCompare(a.time||''));
+  callLog.length=0;
+  entries.forEach(e=>callLog.push(e));
+  if(viewingDate===todayDateGlobal){
+    renderLogList(callLog);
+    updatePeakStatsFromEntries(callLog);
+  }
+});
 window.callNext=async function(cat){
   const snap=await get(ref(db,'queue/'+cat+'/queue'));
   const qObj=snap.val(); if(!qObj)return;
@@ -342,23 +355,11 @@ window.callNext=async function(cat){
   await set(ref(db,'queue/'+cat+'/serving'),fn);
   await runTransaction(ref(db,'queue/'+cat+'/served'),v=>(v||0)+1);
   lastCalledTicket=fn; lastCalledKey=fk;
-  // 叫號紀錄（一定要執行到這裡）
+  // 叫號紀錄：寫入 Firebase 永久歷史（所有裝置都會透過即時監聽自動同步更新畫面，不需要在這裡手動更新本機畫面）
   const nowTime=new Date().toLocaleTimeString('zh-TW',{hour12:false});
-  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
   const logEntry={time:nowTime,num:fn,name:meta[cat].name,cat};
-  // 存到記憶體
-  callLog.unshift(logEntry);
-  if(callLog.length>200)callLog.pop();
-  // 存到 Firebase 永久歷史
   const histKey='h_'+Date.now();
-  set(ref(db,'history/'+todayDate+'/'+histKey),logEntry).catch(e=>console.warn('History write:',e));
-  // 更新畫面（若目前選的日期是今天才更新列表）
-  const sel=document.getElementById('log-date-select');
-  if(!sel.value||sel.value===todayDate){
-    renderLogList(callLog);
-    updateDateSelector(todayDate);
-  }
-  updatePeakStats();
+  set(ref(db,'history/'+todayDateGlobal+'/'+histKey),logEntry).catch(e=>console.warn('History write:',e));
   showToast(meta[cat].name+' — 請 '+fn+' 號到櫃台');
   speakCall(fn, meta[cat].name);
 };
@@ -373,43 +374,32 @@ function renderLogList(entries){
 // ── 切換日期 ──
 window.switchLogDate=async function(date){
   if(!date)return;
-  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
-  if(date===todayDate){
+  viewingDate=date;
+  if(date===todayDateGlobal){
     renderLogList(callLog);
+    updatePeakStatsFromEntries(callLog);
     return;
   }
   const snap=await get(ref(db,'history/'+date));
   const data=snap.val()||{};
-  const entries=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
+  const entries=Object.values(data).sort((a,b)=>(b.time||'').localeCompare(a.time||''));
   renderLogList(entries);
+  updatePeakStatsFromEntries(entries);
 };
 // ── 更新日期選單 ──
 async function updateDateSelector(selectDate){
   const snap=await get(ref(db,'history'));
   const data=snap.val()||{};
   const dates=Object.keys(data).sort((a,b)=>b.localeCompare(a));
-  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
-  if(!dates.includes(todayDate))dates.unshift(todayDate);
+  if(!dates.includes(todayDateGlobal))dates.unshift(todayDateGlobal);
   const sel=document.getElementById('log-date-select');
-  const current=selectDate||sel.value||todayDate;
+  const current=selectDate||sel.value||todayDateGlobal;
   sel.innerHTML=dates.map(d=>
-    '<option value="'+d+'"'+(d===current?' selected':'')+'>'+(d===todayDate?'今天（'+d+'）':d)+'</option>'
+    '<option value="'+d+'"'+(d===current?' selected':'')+'>'+(d===todayDateGlobal?'今天（'+d+'）':d)+'</option>'
   ).join('');
 }
-// 頁面載入時初始化日期選單與今天紀錄
-(async function initLog(){
-  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
-  await updateDateSelector(todayDate);
-  // 載入今天已有的 Firebase 歷史（補齊重整前的紀錄）
-  const snap=await get(ref(db,'history/'+todayDate));
-  const data=snap.val()||{};
-  const saved=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
-  if(saved.length>0&&callLog.length===0){
-    saved.forEach(e=>callLog.push(e));
-    renderLogList(callLog);
-    updatePeakStatsFromEntries(callLog);
-  }
-})();
+// 頁面載入時初始化日期選單（今天的紀錄由上方即時監聽自動載入並保持同步）
+updateDateSelector(todayDateGlobal);
 // ── 人潮時段統計 ──
 function updatePeakStats(){ updatePeakStatsFromEntries(callLog); }
 function updatePeakStatsFromEntries(entries){
@@ -448,18 +438,11 @@ function updatePeakStatsFromEntries(entries){
 }
 window.resetAll=async function(){
   if(!confirm('確定要重置所有號碼嗎？\n叫號歷史紀錄會保留，等候隊列和服務號碼會歸零。'))return;
-  // 只清隊列、服務號碼、離開統計 — 不動 history
+  // 只清隊列、服務號碼、離開統計 — 不動 history（叫號紀錄由即時監聽維持不變）
   await set(ref(db,'queue'),null);
   await set(ref(db,'leaveSummary'),null);
   await set(ref(db,'leaveReasons'),null);
-  callLog.length=0; lastCalledTicket=null; lastCalledKey=null;
-  // 重新初始化今天的紀錄（從 Firebase history 重新載入）
-  const todayDate=new Date().toLocaleDateString('zh-TW').replace(/\//g,'-');
-  const snap=await get(ref(db,'history/'+todayDate));
-  const data=snap.val()||{};
-  const saved=Object.values(data).sort((a,b)=>b.time.localeCompare(a.time));
-  saved.forEach(e=>callLog.push(e));
-  renderLogList(callLog);
+  lastCalledTicket=null; lastCalledKey=null;
   showToast('已重置號碼，歷史紀錄保留中');
 };
 // ── 觸發一對一評分：查出票號對應的裝置 ID，只通知那個裝置，導向外部評分網址 ──
