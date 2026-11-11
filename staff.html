@@ -472,15 +472,18 @@ function speakCall(ticketNum, serviceName){
   const numOnly=ticketNum.replace(/^[A-Z]/,'').replace(/^0+/,'');
   const text='請 '+numOnly+' 號，到櫃台，'+serviceName+'，服務';
   window.speechSynthesis.cancel();
-  const utter=new SpeechSynthesisUtterance(text);
-  utter.lang='zh-TW';
-  utter.rate=0.85;
-  utter.pitch=1;
-  utter.volume=1;
   const voices=window.speechSynthesis.getVoices();
   const zhVoice=voices.find(v=>v.lang==='zh-TW')||voices.find(v=>v.lang.startsWith('zh'))||null;
-  if(zhVoice) utter.voice=zhVoice;
-  window.speechSynthesis.speak(utter);
+  const REPEAT_TIMES=3;
+  for(let i=0;i<REPEAT_TIMES;i++){
+    const utter=new SpeechSynthesisUtterance(text);
+    utter.lang='zh-TW';
+    utter.rate=0.85;
+    utter.pitch=1;
+    utter.volume=1;
+    if(zhVoice) utter.voice=zhVoice;
+    window.speechSynthesis.speak(utter);
+  }
 }
 // ── 匯出 Excel ──
 window.exportExcel=async function(){
