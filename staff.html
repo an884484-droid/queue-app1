@@ -470,7 +470,7 @@ function speakCall(ticketNum, serviceName){
   if(!speechEnabled) return;
   if(!window.speechSynthesis) return;
   const numOnly=ticketNum.replace(/^[A-Z]/,'').replace(/^0+/,'');
-  const text='請 '+numOnly+' 號，到櫃台，'+serviceName+'，服務';
+  const text='請 '+numOnly+' 號到櫃檯';
   window.speechSynthesis.cancel();
   const voices=window.speechSynthesis.getVoices();
   const zhVoice=voices.find(v=>v.lang==='zh-TW')||voices.find(v=>v.lang.startsWith('zh'))||null;
