@@ -122,6 +122,9 @@ main{padding:2rem;max-width:900px;margin:0 auto}
 .contact-empty{font-size:11px;color:#993C1D;opacity:0.65;font-style:italic}
 .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity 0.2s;white-space:nowrap;z-index:300}
 .toast.show{opacity:1}
+.single-call{margin-bottom:1.25rem;text-align:center}
+.single-call-btn{max-width:420px;padding:18px;font-size:18px;background:var(--text);color:#fff;letter-spacing:2px}
+.single-call-hint{font-size:11px;color:var(--text3);margin-top:8px}
 </style>
 </head>
 <body>
@@ -144,12 +147,15 @@ main{padding:2rem;max-width:900px;margin:0 auto}
     <div class="stat"><div class="stat-num" id="total-served">0</div><div class="stat-label">已服務</div></div>
     <div class="stat"><div class="stat-num" id="total-leave">0</div><div class="stat-label" style="color:#D85A30">中途離開</div></div>
   </div>
+  <div class="single-call">
+    <button class="call-next-btn single-call-btn" id="btn-next" onclick="callNextAny()" disabled>叫下一位</button>
+    <div class="single-call-hint">依取號先後順序自動叫號（A / B / C 共用）</div>
+  </div>
   <div class="staff-grid">
     <div class="staff-card a">
       <div class="staff-card-header"><span class="staff-cat-badge">A — 更新</span><span class="staff-count">等候 <span id="cnt-A">0</span> 人</span></div>
       <div class="now-serving-label">服務中</div>
       <div class="now-serving-num" id="srv-A"><span style="font-size:24px;color:var(--text3)">—</span></div>
-      <button class="call-next-btn" id="btn-A" onclick="callNext('A')" disabled>叫下一位</button>
       <div class="queue-title">候叫號碼</div>
       <div class="queue-chips" id="chips-A"><span class="chips-empty">無</span></div>
     </div>
@@ -157,7 +163,6 @@ main{padding:2rem;max-width:900px;margin:0 auto}
       <div class="staff-card-header"><span class="staff-cat-badge">B — 送修 / 購買配件</span><span class="staff-count">等候 <span id="cnt-B">0</span> 人</span></div>
       <div class="now-serving-label">服務中</div>
       <div class="now-serving-num" id="srv-B"><span style="font-size:24px;color:var(--text3)">—</span></div>
-      <button class="call-next-btn" id="btn-B" onclick="callNext('B')" disabled>叫下一位</button>
       <div class="queue-title">候叫號碼</div>
       <div class="queue-chips" id="chips-B"><span class="chips-empty">無</span></div>
     </div>
@@ -165,7 +170,6 @@ main{padding:2rem;max-width:900px;margin:0 auto}
       <div class="staff-card-header"><span class="staff-cat-badge">C — 取件 / 諮詢</span><span class="staff-count">等候 <span id="cnt-C">0</span> 人</span></div>
       <div class="now-serving-label">服務中</div>
       <div class="now-serving-num" id="srv-C"><span style="font-size:24px;color:var(--text3)">—</span></div>
-      <button class="call-next-btn" id="btn-C" onclick="callNext('C')" disabled>叫下一位</button>
       <div class="queue-title">候叫號碼</div>
       <div class="queue-chips" id="chips-C"><span class="chips-empty">無</span></div>
     </div>
@@ -314,10 +318,10 @@ onValue(ref(db,'queue'),snap=>{
     sEl.dataset.val=next;
     sEl.innerHTML=sv?sv:'<span style="font-size:24px;color:var(--text3)">—</span>';
     if(prev!==next&&sv){sEl.classList.remove('pulse');void sEl.offsetWidth;sEl.classList.add('pulse');}
-    document.getElementById('btn-'+cat).disabled=q.length===0;
     const ch=document.getElementById('chips-'+cat);
     ch.innerHTML=q.length?q.map(n=>'<span class="chip">'+n+'</span>').join(''):'<span class="chips-empty">無</span>';
   });
+  document.getElementById('btn-next').disabled=tw===0;
   document.getElementById('total-today').textContent=tc;
   document.getElementById('total-waiting').textContent=tw;
   document.getElementById('total-served').textContent=ts;
@@ -346,6 +350,20 @@ onValue(ref(db,'history/'+todayDateGlobal),snap=>{
     updatePeakStatsFromEntries(callLog);
   }
 });
+window.callNextAny=async function(){
+  const snap=await get(ref(db,'queue'));
+  const data=snap.val()||{};
+  let best=null,bestNum=Infinity;
+  ['A','B','C'].forEach(cat=>{
+    const q=data[cat]&&data[cat].queue?Object.values(data[cat].queue):[];
+    q.forEach(t=>{
+      const n=parseInt(String(t).replace(/^[A-Z]/,''),10);
+      if(n<bestNum){bestNum=n;best=cat;}
+    });
+  });
+  if(!best){showToast('目前沒有等候中的號碼');return;}
+  await window.callNext(best);
+};
 window.callNext=async function(cat){
   const snap=await get(ref(db,'queue/'+cat+'/queue'));
   const qObj=snap.val(); if(!qObj)return;
